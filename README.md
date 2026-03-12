@@ -11,7 +11,7 @@ Este proyecto se utiliza principalmente en **talleres educativos de MediaLab_**,
 
 Proyecto creado por:
 
-**José Escobedo**  
+**José Escobedo Vázquez**  
 Integrante de **MediaLab_**
 
 ---
