@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Visor bitmap 128x64 monocromo</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #111;
+      --panel: #1b1b1b;
+      --text: #f5f5f5;
+      --muted: #bdbdbd;
+      --accent: #4da3ff;
+      --border: #333;
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f3f4f6;
+        --panel: #ffffff;
+        --text: #111827;
+        --muted: #4b5563;
+        --accent: #2563eb;
+        --border: #d1d5db;
+      }
+    }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 20px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+      padding: 18px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 1.5rem;
+    }
+    p {
+      margin: 0 0 14px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    textarea {
+      width: 100%;
+      min-height: 360px;
+      resize: vertical;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      padding: 12px;
+      box-sizing: border-box;
+      font: 14px/1.4 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      background: transparent;
+      color: var(--text);
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin: 14px 0;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-top: 10px;
+    }
+    label {
+      font-size: 0.95rem;
+      color: var(--muted);
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    input, select {
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text);
+      padding: 8px 10px;
+      font: inherit;
+    }
+    button {
+      border: 0;
+      background: var(--accent);
+      color: white;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button.secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .viewer {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    canvas {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      max-width: 100%;
+      height: auto;
+    }
+    .stats {
+      font: 13px/1.4 ui-monospace, monospace;
+      color: var(--muted);
+      white-space: pre-wrap;
+    }
+    .hint {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+    @media (max-width: 900px) {
+      .wrap { grid-template-columns: 1fr; }
+      .controls { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="card">
+      <h1>Visor de bitmap C 128x64</h1>
+      <p>Pega un array C con valores <code>0x..</code>, decimales o mezclados. El visor renderiza bitmaps monocromos de 128x64 y puede ampliarlos.</p>
+      <textarea id="input" spellcheck="false">{ 0x00, 0x00, 0x00, 0x00 }</textarea>
+      <div class="controls">
+        <label>Ancho <input id="width" type="number" min="1" value="128" /></label>
+        <label>Alto <input id="height" type="number" min="1" value="64" /></label>
+        <label>Escala <input id="scale" type="number" min="1" max="32" value="4" /></label>
+        <label>Formato
+          <select id="format">
+            <option value="ssd1306">SSD1306 / páginas verticales</option>
+            <option value="horizontal">Horizontal 1bpp</option>
+          </select>
+        </label>
+        <label><input id="invert" type="checkbox" /> Invertir colores</label>
+        <label><input id="grid" type="checkbox" /> Mostrar cuadrícula</label>
+      </div>
+      <div class="row">
+        <button id="renderBtn">Renderizar</button>
+        <button id="downloadBtn" class="secondary">Descargar PNG</button>
+        <button id="sampleBtn" class="secondary">Cargar ejemplo</button>
+        <button id="clearBtn" class="secondary">Limpiar</button>
+      </div>
+      <div class="hint">Para 128x64 monocromo, lo normal son <strong>1024 bytes</strong>.</div>
+    </section>
+
+    <section class="card viewer">
+      <canvas id="canvas" width="512" height="256"></canvas>
+      <div id="stats" class="stats">Sin renderizar todavía.</div>
+    </section>
+  </div>
+
+  <script>
+    const input = document.getElementById('input');
+    const widthEl = document.getElementById('width');
+    const heightEl = document.getElementById('height');
+    const scaleEl = document.getElementById('scale');
+    const formatEl = document.getElementById('format');
+    const invertEl = document.getElementById('invert');
+    const gridEl = document.getElementById('grid');
+    const canvas = document.getElementById('canvas');
+    const stats = document.getElementById('stats');
+
+    function parseBytes(text) {
+      const cleaned = text
+        .replace(/\/\*[\s\S]*?\*\//g, ' ')
+        .replace(/\/\/.*$/gm, ' ');
+
+      const matches = cleaned.match(/0x[0-9a-fA-F]+|\b\d+\b/g) || [];
+      return matches.map(v => {
+        const n = v.toLowerCase().startsWith('0x') ? parseInt(v, 16) : parseInt(v, 10);
+        return Number.isFinite(n) ? (n & 0xFF) : 0;
+      });
+    }
+
+    function getBitHorizontal(bytes, width, x, y) {
+      const bytesPerRow = Math.ceil(width / 8);
+      const index = y * bytesPerRow + (x >> 3);
+      const bit = 7 - (x & 7);
+      return ((bytes[index] || 0) >> bit) & 1;
+    }
+
+    function getBitSSD1306(bytes, width, height, x, y) {
+      const page = Math.floor(y / 8);
+      const bit = y % 8;
+      const index = page * width + x;
+      return ((bytes[index] || 0) >> bit) & 1;
+    }
+
+    function render() {
+      const width = Math.max(1, parseInt(widthEl.value, 10) || 128);
+      const height = Math.max(1, parseInt(heightEl.value, 10) || 64);
+      const scale = Math.max(1, parseInt(scaleEl.value, 10) || 4);
+      const format = formatEl.value;
+      const invert = invertEl.checked;
+      const showGrid = gridEl.checked;
+      const bytes = parseBytes(input.value);
+
+      canvas.width = width * scale;
+      canvas.height = height * scale;
+      const ctx = canvas.getContext('2d');
+      ctx.imageSmoothingEnabled = false;
+      ctx.fillStyle = invert ? '#000' : '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      let onPixels = 0;
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const bit = format === 'ssd1306'
+            ? getBitSSD1306(bytes, width, height, x, y)
+            : getBitHorizontal(bytes, width, x, y);
+
+          const lit = invert ? !bit : !!bit;
+          if (lit) {
+            ctx.fillStyle = invert ? '#fff' : '#000';
+            ctx.fillRect(x * scale, y * scale, scale, scale);
+            onPixels++;
+          }
+        }
+      }
+
+      if (showGrid && scale >= 4) {
+        ctx.strokeStyle = 'rgba(127,127,127,0.2)';
+        ctx.lineWidth = 1;
+        for (let x = 0; x <= width; x++) {
+          ctx.beginPath();
+          ctx.moveTo(x * scale + 0.5, 0);
+          ctx.lineTo(x * scale + 0.5, canvas.height);
+          ctx.stroke();
+        }
+        for (let y = 0; y <= height; y++) {
+          ctx.beginPath();
+          ctx.moveTo(0, y * scale + 0.5);
+          ctx.lineTo(canvas.width, y * scale + 0.5);
+          ctx.stroke();
+        }
+      }
+
+      const expected = format === 'ssd1306'
+        ? width * Math.ceil(height / 8)
+        : Math.ceil(width / 8) * height;
+
+      stats.textContent = [
+        `Bytes detectados: ${bytes.length}`,
+        `Bytes esperados:  ${expected}`,
+        `Resolución:       ${width}x${height}`,
+        `Formato:          ${format === 'ssd1306' ? 'SSD1306 / páginas' : 'Horizontal 1bpp'}`,
+        `Píxeles activos:  ${onPixels}`
+      ].join('\n');
+    }
+
+    document.getElementById('renderBtn').addEventListener('click', render);
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      input.value = '';
+      render();
+    });
+
+    document.getElementById('downloadBtn').addEventListener('click', () => {
+      render();
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = 'bitmap_render.png';
+      a.click();
+    });
+
+    document.getElementById('sampleBtn').addEventListener('click', () => {
+      input.value = `{
+  0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+  0x3C,0x7E,0xFF,0xE7,0xE7,0xFF,0x7E,0x3C,
+  0x00,0x18,0x3C,0x7E,0x7E,0x3C,0x18,0x00
+}`;
+      widthEl.value = 16;
+      heightEl.value = 16;
+      formatEl.value = 'ssd1306';
+      scaleEl.value = 12;
+      render();
+    });
+
+    [widthEl, heightEl, scaleEl, formatEl, invertEl, gridEl].forEach(el => {
+      el.addEventListener('change', render);
+    });
+
+    render();
+  </script>
+</body>
+</html>
