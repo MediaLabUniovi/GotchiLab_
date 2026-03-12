@@ -234,7 +234,7 @@ Duración aproximada:
 
 # Generación de animaciones desde vídeo
 
-El repositorio incluye una carpeta con un **script en Python** que permite convertir vídeos en animaciones compatibles con el firmware.
+El repositorio incluye un **script en Python** que permite convertir vídeos en animaciones compatibles con el firmware.
 
 El script:
 
