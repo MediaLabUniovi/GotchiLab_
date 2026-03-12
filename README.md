@@ -274,32 +274,6 @@ que podrán integrarse directamente en el proyecto.
 
 ---
 
-# Estructura del repositorio
-
-Ejemplo de organización del proyecto:
-
-```
-GotchiLab_
-│
-├─ src
-│   └─ main.cpp
-│
-├─ animaciones
-│   ├─ penguin_idle.c
-│   ├─ penguin_idle.h
-│   ├─ penguin_feed.c
-│   └─ penguin_feed.h
-│
-├─ tools
-│   └─ mp4_a_c_array_v2.py
-│
-├─ hardware
-│   └─ esquema.png
-│
-└─ README.md
-```
-
----
 
 # Contexto educativo
 
