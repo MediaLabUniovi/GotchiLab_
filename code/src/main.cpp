@@ -70,6 +70,20 @@ static const uint8_t SLEEP_HOLD_FRAME = 10;
 // ------------------------
 bool feedRequested = false;
 
+// ------------------------
+// Control de nacimiento / huevo
+// ------------------------
+bool isHatched = false;
+bool birthTriggered = false;
+
+// ------------------------
+// Control especial de POP por spam de comida
+// ------------------------
+static const uint8_t FEED_SPAM_TRIGGER = 5;          // nº de pulsaciones
+static const uint32_t FEED_SPAM_WINDOW_MS = 2200;    // ventana de tiempo
+uint8_t rapidFeedCount = 0;
+uint32_t firstFeedPressTime = 0;
+
 // =====================================================
 // SONIDOS
 // =====================================================
@@ -93,6 +107,18 @@ const Note SOUND_IDLE[] = {
 
 const Note SOUND_SLEEP[] = {
     {698, 70}, {587, 80}, {494, 110}, {0, 40}
+};
+
+const Note SOUND_EGG[] = {
+    {392, 70}, {440, 70}, {392, 80}, {0, 40}
+};
+
+const Note SOUND_BIRTH[] = {
+    {523, 60}, {659, 60}, {784, 60}, {988, 80}, {1175, 110}, {0, 40}
+};
+
+const Note SOUND_POP[] = {
+    {220, 40}, {180, 35}, {140, 35}, {90, 70}, {0, 30}
 };
 
 const Note* currentSound = nullptr;
@@ -174,16 +200,28 @@ extern "C" {
 
     extern const uint8_t penguin_sleep_anim[15][1024];
     extern const int penguin_sleep_offsets[15];
+
+    extern const uint8_t penguin_pop_anim[15][1024];
+    extern const int penguin_pop_offsets[15];
+
+    extern const uint8_t penguin_idle_egg_anim[15][1024];
+    extern const int penguin_idle_egg_offsets[15];
+
+    extern const uint8_t penguin_birth_anim[15][1024];
+    extern const int penguin_birth_offsets[15];
 }
 
 enum AnimationState {
     FEED = 0,
     IDLE = 1,
     PET = 2,
-    SLEEP = 3
+    SLEEP = 3,
+    POP = 4,
+    IDLE_EGG = 5,
+    BIRTH = 6
 };
 
-AnimationState currentAnimation = IDLE;
+AnimationState currentAnimation = IDLE_EGG;
 static uint8_t currentFrame = 0;
 
 static const uint16_t FRAME_COUNT = 15;
@@ -197,11 +235,14 @@ uint32_t lastFrameTime = 0;
 const char* getAnimationName(AnimationState anim)
 {
     switch (anim) {
-        case FEED:  return "FEED";
-        case IDLE:  return "IDLE";
-        case PET:   return "PET";
-        case SLEEP: return "SLEEP";
-        default:    return "UNKNOWN";
+        case FEED:     return "FEED";
+        case IDLE:     return "IDLE";
+        case PET:      return "PET";
+        case SLEEP:    return "SLEEP";
+        case POP:      return "POP";
+        case IDLE_EGG: return "IDLE_EGG";
+        case BIRTH:    return "BIRTH";
+        default:       return "UNKNOWN";
     }
 }
 
@@ -219,6 +260,15 @@ void playAnimationSound(AnimationState anim)
             break;
         case SLEEP:
             playSoundSequence(SOUND_SLEEP, sizeof(SOUND_SLEEP) / sizeof(SOUND_SLEEP[0]));
+            break;
+        case IDLE_EGG:
+            playSoundSequence(SOUND_EGG, sizeof(SOUND_EGG) / sizeof(SOUND_EGG[0]));
+            break;
+        case BIRTH:
+            playSoundSequence(SOUND_BIRTH, sizeof(SOUND_BIRTH) / sizeof(SOUND_BIRTH[0]));
+            break;
+        case POP:
+            playSoundSequence(SOUND_POP, sizeof(SOUND_POP) / sizeof(SOUND_POP[0]));
             break;
     }
 }
@@ -265,6 +315,18 @@ void getCurrentAnimationFrame(const uint8_t** frameData, int* yOffset)
             *frameData = penguin_sleep_anim[currentFrame];
             *yOffset = penguin_sleep_offsets[currentFrame];
             break;
+        case POP:
+            *frameData = penguin_pop_anim[currentFrame];
+            *yOffset = penguin_pop_offsets[currentFrame];
+            break;
+        case IDLE_EGG:
+            *frameData = penguin_idle_egg_anim[currentFrame];
+            *yOffset = penguin_idle_egg_offsets[currentFrame];
+            break;
+        case BIRTH:
+            *frameData = penguin_birth_anim[currentFrame];
+            *yOffset = penguin_birth_offsets[currentFrame];
+            break;
         default:
             *frameData = penguin_idle_anim[currentFrame];
             *yOffset = penguin_idle_offsets[currentFrame];
@@ -278,6 +340,25 @@ void refreshCurrentFrame()
     int yOffset;
     getCurrentAnimationFrame(&frameData, &yOffset);
     drawFrameRaw(frameData, yOffset);
+}
+
+void resetToEggState()
+{
+    Serial.println("[STATE] Reset -> EGG");
+
+    isHatched = false;
+    birthTriggered = false;
+    feedRequested = false;
+    sleepHoldFrame = false;
+    rapidFeedCount = 0;
+    firstFeedPressTime = 0;
+    lastPetDetected = false;
+
+    currentAnimation = IDLE_EGG;
+    currentFrame = 0;
+
+    playAnimationSound(IDLE_EGG);
+    refreshCurrentFrame();
 }
 
 void setAnimation(AnimationState newAnim)
@@ -337,7 +418,31 @@ void showBootMessage()
 
 // =====================================================
 // BOTON = COMER
+// MUCHAS PULSACIONES = POP
 // =====================================================
+
+void registerFeedSpam()
+{
+    uint32_t now = millis();
+
+    if (firstFeedPressTime == 0 || (now - firstFeedPressTime > FEED_SPAM_WINDOW_MS)) {
+        firstFeedPressTime = now;
+        rapidFeedCount = 1;
+    } else {
+        rapidFeedCount++;
+    }
+
+    Serial.print("[FEED_COUNT] ");
+    Serial.println(rapidFeedCount);
+
+    if (rapidFeedCount >= FEED_SPAM_TRIGGER) {
+        Serial.println("[BUTTON] POP por sobrealimentacion");
+        rapidFeedCount = 0;
+        firstFeedPressTime = 0;
+        feedRequested = false;
+        setAnimation(POP);
+    }
+}
 
 void handleButton()
 {
@@ -348,6 +453,21 @@ void handleButton()
 
         if (now - lastButtonTime > DEBOUNCE_MS) {
             lastButtonTime = now;
+
+            // Mientras está en huevo o nacimiento, el botón no hace nada
+            if (!isHatched || currentAnimation == IDLE_EGG || currentAnimation == BIRTH || currentAnimation == POP) {
+                Serial.println("[BUTTON] ignorado (aun no ha nacido o esta en POP)");
+                lastButtonState = state;
+                return;
+            }
+
+            registerFeedSpam();
+
+            if (currentAnimation == POP) {
+                lastButtonState = state;
+                return;
+            }
+
             Serial.println("[BUTTON] FEED");
             feedRequested = true;
             setAnimation(FEED);
@@ -359,6 +479,7 @@ void handleButton()
 
 // =====================================================
 // LUZ = DORMIR
+// Antes de nacer no afecta
 // =====================================================
 
 void handleLightSensor()
@@ -377,6 +498,11 @@ void handleLightSensor()
     Serial.print(" -> ");
     Serial.println(isDark ? "OSCURO" : "LUZ");
 
+    if (!isHatched) {
+        lastDarkState = isDark;
+        return;
+    }
+
     if (isDark != lastDarkState) {
         if (isDark) {
             feedRequested = false;
@@ -390,9 +516,9 @@ void handleLightSensor()
 }
 
 // =====================================================
-// DISTANCIA = CARICIA
-// Si algo pasa por delante a < 5 cm -> PET
-// Y PET se deja terminar completa
+// DISTANCIA =
+// - Si no ha nacido: activity -> BIRTH
+// - Si ya nacio: a < 5 cm -> PET
 // =====================================================
 
 void handleDistanceSensor()
@@ -404,14 +530,35 @@ void handleDistanceSensor()
     lastDistanceReadTime = now;
 
     float distance = readDistanceCM();
+    bool validDistance = (distance > 0.0f);
     bool petDetected = (distance > 0.0f && distance <= PET_DISTANCE_CM);
 
-    if (distance > 0.0f) {
+    if (validDistance) {
         Serial.print("[DIST] ");
         Serial.print(distance);
         Serial.println(" cm");
     } else {
         Serial.println("[DIST] sin lectura");
+    }
+
+    // -----------------------------
+    // Fase huevo -> nacimiento
+    // -----------------------------
+    if (!isHatched) {
+        if (currentAnimation == IDLE_EGG && validDistance && petDetected && !birthTriggered) {
+            Serial.println("[DIST] Actividad detectada -> BIRTH");
+            birthTriggered = true;
+            setAnimation(BIRTH);
+        }
+
+        lastPetDetected = petDetected;
+        return;
+    }
+
+    // Durante POP no hacemos nada
+    if (currentAnimation == POP) {
+        lastPetDetected = petDetected;
+        return;
     }
 
     if (isDark) {
@@ -484,11 +631,11 @@ void setup()
     isDark = lightValue < LIGHT_THRESHOLD;
     lastDarkState = isDark;
 
-    if (isDark) {
-        currentAnimation = SLEEP;
-    } else {
-        currentAnimation = IDLE;
-    }
+    // Empieza SIEMPRE en huevo
+    isHatched = false;
+    birthTriggered = false;
+    currentAnimation = IDLE_EGG;
+    currentFrame = 0;
 
     playAnimationSound(currentAnimation);
     refreshCurrentFrame();
@@ -530,18 +677,60 @@ void loop()
             currentFrame++;
 
             if (currentFrame >= FRAME_COUNT) {
-                if (currentAnimation == FEED && feedRequested) {
+
+                // ---------------------------------
+                // HUEVO: se queda en loop
+                // ---------------------------------
+                if (currentAnimation == IDLE_EGG) {
+                    currentFrame = 0;
+                }
+
+                // ---------------------------------
+                // NACIMIENTO -> IDLE o SLEEP
+                // ---------------------------------
+                else if (currentAnimation == BIRTH) {
+                    isHatched = true;
+                    birthTriggered = false;
+                    rapidFeedCount = 0;
+                    firstFeedPressTime = 0;
+
+                    if (isDark) {
+                        setAnimation(SLEEP);
+                    } else {
+                        setAnimation(IDLE);
+                    }
+                    return;
+                }
+
+                // ---------------------------------
+                // FEED -> IDLE
+                // ---------------------------------
+                else if (currentAnimation == FEED && feedRequested) {
                     feedRequested = false;
                     setAnimation(IDLE);
                     return;
                 }
 
-                if (currentAnimation == PET) {
+                // ---------------------------------
+                // PET -> IDLE
+                // ---------------------------------
+                else if (currentAnimation == PET) {
                     setAnimation(IDLE);
                     return;
                 }
 
-                if (currentAnimation == SLEEP) {
+                // ---------------------------------
+                // POP -> volver al inicio
+                // ---------------------------------
+                else if (currentAnimation == POP) {
+                    resetToEggState();
+                    return;
+                }
+
+                // ---------------------------------
+                // SLEEP
+                // ---------------------------------
+                else if (currentAnimation == SLEEP) {
                     if (isDark) {
                         currentFrame = SLEEP_HOLD_FRAME;
                         sleepHoldFrame = true;
@@ -551,7 +740,9 @@ void loop()
                     }
                 }
 
-                currentFrame = 0;
+                else {
+                    currentFrame = 0;
+                }
             }
         }
 
