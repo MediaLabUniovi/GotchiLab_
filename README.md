@@ -23,24 +23,28 @@ GotchiLab es una **mascota electrónica interactiva** basada en un **ESP32**, un
 
 El sistema muestra animaciones del pingüino y responde a diferentes acciones del usuario.
 
-Interacciones disponibles:
+El ciclo de vida comienza con **un huevo**, que se abrirá cuando detecte actividad cerca.
+
+## Interacciones disponibles
 
 | Interacción | Acción |
 |-------------|------|
+| Detectar presencia cerca del sensor | El huevo se abre y nace el pingüino |
 | Pulsar el botón | El pingüino come |
 | Pasar la mano cerca | El pingüino recibe una caricia |
 | Oscuridad | El pingüino se duerme |
 | Vuelve la luz | El pingüino se despierta |
+| Pulsar muchas veces el botón | El pingüino explota y el juego reinicia |
 | Sonidos | Expresa emociones |
 
 El objetivo del proyecto es explicar de forma sencilla:
 
-- sensores
-- entradas digitales
-- entradas analógicas
-- microcontroladores
-- animaciones en pantalla
-- interacción hardware/software
+- sensores  
+- entradas digitales  
+- entradas analógicas  
+- microcontroladores  
+- animaciones en pantalla  
+- interacción hardware/software  
 
 ---
 
@@ -50,17 +54,64 @@ El comportamiento del pingüino se basa en diferentes estados:
 
 | Estado | Descripción |
 |------|-------------|
-| IDLE | Estado normal |
+| IDLE_EGG | Estado inicial, el pingüino está dentro del huevo |
+| BIRTH | Animación de nacimiento |
+| IDLE | Estado normal del pingüino |
 | FEED | Animación de comer |
 | PET | Animación de caricia |
 | SLEEP | Animación de dormir |
+| POP | El pingüino explota por sobrealimentación |
 
-Reglas de comportamiento implementadas:
+---
 
-- La animación **PET** siempre se completa una vez iniciada.
-- La animación **SLEEP** se detiene en el frame 10 si continúa la oscuridad.
-- Cuando vuelve la luz la animación continúa de forma natural.
-- La animación **FEED** tiene prioridad hasta finalizar.
+# Reglas de comportamiento
+
+## Nacimiento
+
+- El sistema inicia siempre en **IDLE_EGG**.
+- Cuando el sensor detecta presencia cercana, comienza **BIRTH**.
+- Al terminar la animación de nacimiento, el pingüino entra en **IDLE**.
+
+---
+
+## Alimentación
+
+- Pulsar el botón activa la animación **FEED**.
+- La animación de comida tiene prioridad hasta terminar.
+
+---
+
+## Caricias
+
+- Si la mano se detecta a menos de **5 cm**, se activa **PET**.
+- La animación **PET siempre se completa** una vez iniciada.
+
+---
+
+## Sueño
+
+- Si el sensor detecta oscuridad, el pingüino entra en **SLEEP**.
+- La animación se detiene en el **frame 10** mientras continúe la oscuridad.
+- Cuando vuelve la luz, el pingüino vuelve a **IDLE**.
+
+---
+
+## Sobrealimentación (POP)
+
+Si el botón de comida se pulsa **muchas veces seguidas** en poco tiempo:
+
+- el pingüino **explota**
+- se reproduce una animación **POP**
+- se reproduce un **sonido de explosión**
+- el sistema **se reinicia**
+
+Después de la explosión:
+
+```
+POP → IDLE_EGG
+```
+
+El ciclo vuelve a comenzar desde el huevo.
 
 ---
 
@@ -182,17 +233,13 @@ El ESP32 mide el nivel de luz con `analogRead()`.
 
 El buzzer se controla mediante **PWM del ESP32 (LEDC)**.
 
-Produce:
+Produce sonidos para:
 
-- sonido al comer
-- sonido al acariciar
-- melodía al dormir
-
-
-
-<img width="1861" height="864" alt="image" src="https://github.com/user-attachments/assets/c9793ffc-06e1-47dd-919d-9f5842d177b1" />
-
-
+- nacimiento del pingüino  
+- comer  
+- caricias  
+- dormir  
+- explosión (POP)
 
 ---
 
@@ -202,8 +249,8 @@ El firmware está escrito en **C++ usando el framework Arduino**.
 
 Puede compilarse con:
 
-- PlatformIO
-- Arduino IDE
+- PlatformIO  
+- Arduino IDE  
 
 ## Librerías necesarias
 
@@ -221,7 +268,7 @@ Las animaciones se almacenan como arrays de frames.
 
 Cada animación contiene:
 
-- 15 frames
+- **15 frames**
 - resolución **128x64**
 - **1024 bytes por frame**
 
@@ -236,6 +283,18 @@ Duración aproximada:
 ```
 3 segundos por animación
 ```
+
+## Animaciones incluidas
+
+| Animación | Descripción |
+|-----------|-------------|
+| penguin_idle_egg | Huevo esperando a nacer |
+| penguin_birth | Nacimiento del pingüino |
+| penguin_idle | Pingüino en estado normal |
+| penguin_feed | Pingüino comiendo |
+| penguin_pet | Pingüino recibiendo caricia |
+| penguin_sleep | Pingüino dormido |
+| penguin_pop | Explosión del pingüino |
 
 ---
 
@@ -281,20 +340,19 @@ que podrán integrarse directamente en el proyecto.
 
 ---
 
-
 # Contexto educativo
 
 El proyecto se utiliza en talleres de **MediaLab_** para introducir conceptos como:
 
-- sensores
-- microcontroladores
-- animaciones en pantallas pequeñas
-- programación embebida
-- interacción hardware/software
+- sensores  
+- microcontroladores  
+- animaciones en pantallas pequeñas  
+- programación embebida  
+- interacción hardware/software  
 
 Está diseñado para que los participantes puedan:
 
-- montar el circuito
-- cargar el firmware
-- modificar animaciones
+- montar el circuito  
+- cargar el firmware  
+- modificar animaciones  
 - experimentar con nuevos comportamientos.
