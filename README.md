@@ -1,4 +1,4 @@
-# GotchiLab_
+<img width="1861" height="864" alt="Esquematico" src="https://github.com/user-attachments/assets/e5049316-c6fb-46bc-a711-5c825e95f451" /># GotchiLab_
 Una versión propia creada en **MediaLab_** del clásico *tamagotchi*. Está pensada para poder enseñar a los niños **electrónica básica, sensores, respuestas y reacciones** de una forma gráfica e interactiva.
 
 La mascota es un pequeño **pingüino animado** que vive dentro de una pantalla OLED y que reacciona a distintas interacciones del usuario.
@@ -186,6 +186,12 @@ Produce:
 - sonido al comer
 - sonido al acariciar
 - melodía al dormir
+
+
+
+<img width="1861" height="864" alt="image" src="https://github.com/user-attachments/assets/c9793ffc-06e1-47dd-919d-9f5842d177b1" />
+
+
 
 ---
 
