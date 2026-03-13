@@ -1,3 +1,5 @@
+# GotchiLab_
+
 Una versión propia creada en **MediaLab_** del clásico *tamagotchi*. Está pensada para poder enseñar a los niños **electrónica básica, sensores, respuestas y reacciones** de una forma gráfica e interactiva.
 
 La mascota es un pequeño **pingüino animado** que vive dentro de una pantalla OLED y que reacciona a distintas interacciones del usuario.
