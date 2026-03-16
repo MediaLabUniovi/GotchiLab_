@@ -42,7 +42,7 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 #define BUZZER_PIN 26
 #define BUZZER_CHANNEL 0
 #define BUZZER_RESOLUTION 8
-#define BUZZER_VOLUME 16
+#define BUZZER_VOLUME 40
 
 // ------------------------
 // Timings y estados
@@ -58,6 +58,7 @@ bool lastDarkState = false;
 
 uint32_t lastDistanceReadTime = 0;
 bool lastPetDetected = false;
+bool distanceSensorInitialized = false;   // <- nuevo
 
 // ------------------------
 // Control especial de SLEEP
@@ -353,6 +354,7 @@ void resetToEggState()
     rapidFeedCount = 0;
     firstFeedPressTime = 0;
     lastPetDetected = false;
+    distanceSensorInitialized = false;
 
     currentAnimation = IDLE_EGG;
     currentFrame = 0;
@@ -519,6 +521,7 @@ void handleLightSensor()
 // DISTANCIA =
 // - Si no ha nacido: activity -> BIRTH
 // - Si ya nacio: a < 5 cm -> PET
+// Pero NO reacciona a la lectura inicial, solo a cambios
 // =====================================================
 
 void handleDistanceSensor()
@@ -541,12 +544,23 @@ void handleDistanceSensor()
         Serial.println("[DIST] sin lectura");
     }
 
+    // Primera lectura válida: solo memoriza estado, no dispara animación
+    if (!distanceSensorInitialized) {
+        if (validDistance) {
+            lastPetDetected = petDetected;
+            distanceSensorInitialized = true;
+            Serial.println("[DIST] Sensor inicializado, esperando cambio...");
+        }
+        return;
+    }
+
     // -----------------------------
     // Fase huevo -> nacimiento
+    // Solo si hay cambio real: antes no detectaba, ahora sí
     // -----------------------------
     if (!isHatched) {
-        if (currentAnimation == IDLE_EGG && validDistance && petDetected && !birthTriggered) {
-            Serial.println("[DIST] Actividad detectada -> BIRTH");
+        if (currentAnimation == IDLE_EGG && petDetected && !lastPetDetected && !birthTriggered) {
+            Serial.println("[DIST] Cambio detectado -> BIRTH");
             birthTriggered = true;
             setAnimation(BIRTH);
         }
@@ -584,7 +598,7 @@ void handleDistanceSensor()
 
     // Solo lanzar PET cuando aparece una detección nueva
     if (petDetected && !lastPetDetected) {
-        Serial.println("[DIST] Cerca -> PET");
+        Serial.println("[DIST] Cambio cerca -> PET");
         setAnimation(PET);
     }
 
@@ -636,6 +650,8 @@ void setup()
     birthTriggered = false;
     currentAnimation = IDLE_EGG;
     currentFrame = 0;
+    lastPetDetected = false;
+    distanceSensorInitialized = false;
 
     playAnimationSound(currentAnimation);
     refreshCurrentFrame();
