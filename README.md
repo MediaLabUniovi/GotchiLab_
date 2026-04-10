@@ -344,8 +344,9 @@ SparkFun SCD30
 # Generación de animaciones desde vídeo
 
 Script Python incluido:
-
+```cpp
 python mp4_a_c_array_v2.py video.mp4 --base-name nombre
+```
 
 Genera:
 
@@ -355,7 +356,7 @@ nombre.h
 ---
 
 # Estructura del proyecto
-
+```cpp
 src/
   main.cpp
   config/
@@ -363,7 +364,7 @@ src/
   animations/
     *.c
     *.h
-
+```
 ---
 
 # Contexto educativo
