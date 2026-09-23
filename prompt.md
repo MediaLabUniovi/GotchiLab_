@@ -178,14 +178,19 @@ enum AnimationState {
 };
 ```
 
-### 5.2 Reglas de Supervivencia y Muerte
+### 5.2 Reglas de Supervivencia, Alertas Acústicas y Muerte
 1. **Inanición (3 minutos)**: Si transcurren más de `STARVATION_TIME_MS` (180,000 ms) sin alimentar al pingüino, muere por inanición.
-2. **Sobrealimentación (`POP`)**: Si se pulsa el botón 5 veces en menos de 2.2 segundos, explota y muere de forma inmediata.
+   - *Alerta Acústica de Hambre*: A partir de 1 minuto sin comer (`HUNGER_ALERT_TIME_MS`), genera un sonido realista de **estómago rugiendo** (`SOUND_HUNGER_GROWL`) cada 20 segundos.
+2. **Sobrealimentación (`POP`) y Protección de Nacimiento**:
+   - Si se pulsa el botón 5 veces en menos de 2.2 segundos, explota y muere (`POP`).
+   - *Inmunidad antes y durante el Nacimiento*: Antes de nacer (huevo `IDLE_EGG` o animación `BIRTH`), pulsar el botón no acumula spam ni produce muertes. Además, cuenta con un período de gracia de 5 segundos tras nacer (`NEWBORN_GRACE_PERIOD_MS`) inmune a sobrealimentación por pulsaciones rápidas.
 3. **Asfixia por $CO_2$**: Activación a $\ge 1600\text{ ppm}$ y recuperación a $\le 1100\text{ ppm}$. Si acumula 60 segundos continuos en atmósfera contaminada (`MAX_CO2_EXPOSURE_MS`), muere por asfixia.
+   - *Alerta Acústica de Enfermo / Tos*: Mientras el $CO_2$ esté alto, tose periódicamente (`SOUND_COUGH`, cada 12 segundos) simulando carraspeos secos por el aire viciado.
 4. **Agotamiento Extremo (2.5 minutos)**: Si permanece despierto sin descanso, acumula fatiga. Al apagar la luz / tapar el LDR, recupera energía de forma progresiva (3x más rápido). Si no duerme en 150 segundos, muere por agotamiento.
-5. **Game Over y Puntuación**:
+   - *Alerta Acústica de Sueño*: Si permanece despierto más de 70 segundos (`SLEEP_ALERT_TIME_MS`), emite periódicamente una **melodía somnolienta descendente** dulce (`SOUND_SLEEPY`) pidiendo descansar, la cual también sirve de nana al entrar en modo sueño.
+5. **Game Over, Puntuación y Reinicio**:
    $$\text{Puntuación} = (T_{\text{vivo}} \times 10) + (N_{\text{comidas}} \times 15) + (N_{\text{caricias}} \times 20) - \text{Penalizaciones}$$
-   La pantalla final se muestra durante 9 segundos con la causa explícita en español y luego reinicia al huevo.
+   La pantalla final se muestra durante 9 segundos (o se reinicia inmediatamente si el usuario pulsa botón o touch tras 1.5s). Al volver al huevo, **absolutamente todos los valores, acumuladores, estadísticas, frecuencias de buzzer y timestamps se reinician desde cero**.
 
 ---
 

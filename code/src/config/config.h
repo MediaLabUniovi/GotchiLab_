@@ -73,6 +73,8 @@
 #define MAX_CO2_EXPOSURE_MS     60000UL
 // Factor de recuperación rápida al volver el aire limpio (se recupera 3x más rápido)
 #define CO2_CLEAN_RECOVERY_MULTIPLIER 3
+// Intervalo de sonido de tos/enfermo cuando el CO2 está alto (cada 12 segundos)
+#define CO2_COUGH_INTERVAL_MS   12000UL
 
 // =====================================================
 // BOTON / ALIMENTACION / SOBREALIMENTACION
@@ -83,8 +85,24 @@
 #define FEED_SPAM_TRIGGER 5
 #define FEED_SPAM_WINDOW_MS 2200
 
+// Período de gracia inicial al nacer (5s): inmune a sobrealimentación por pulsaciones previas o rápidas
+#define NEWBORN_GRACE_PERIOD_MS 5000UL
+
 // Tiempo sin comer para morir de inanición: 3 minutos (180,000 ms)
 #define STARVATION_TIME_MS      180000UL
+// Umbral a partir del cual empieza a tener hambre (1 minuto sin comer)
+#define HUNGER_ALERT_TIME_MS    60000UL
+// Intervalo para repetir el sonido de estómago rugiendo mientras tenga hambre (cada 20 segundos)
+#define HUNGER_SOUND_INTERVAL_MS 20000UL
+
+// =====================================================
+// SUEÑO Y FATIGA (ALERTAS SONORAS)
+// =====================================================
+
+// Umbral a partir del cual tiene sueño tras estar despierto (70 segundos)
+#define SLEEP_ALERT_TIME_MS     70000UL
+// Intervalo para repetir la melodía somnolienta si no se le apaga la luz (cada 25 segundos)
+#define SLEEP_SOUND_INTERVAL_MS 25000UL
 
 // =====================================================
 // FELICIDAD / CARICIAS

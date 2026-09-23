@@ -86,8 +86,31 @@ const Note SOUND_IDLE[] = {
     {523, 40}, {659, 50}, {0, 20}
 };
 
+// Melodía somnolienta descendente (suave, relajante, tipo nana/bostezo)
+const Note SOUND_SLEEPY[] = {
+    {784, 130}, {659, 150}, {587, 170}, {523, 200},
+    {0, 60},
+    {440, 200}, {392, 230}, {330, 280}, {262, 400}, {0, 80}
+};
+
 const Note SOUND_SLEEP[] = {
-    {698, 70}, {587, 80}, {494, 110}, {0, 40}
+    {784, 130}, {659, 150}, {587, 170}, {523, 200},
+    {0, 60},
+    {440, 200}, {392, 230}, {330, 280}, {262, 400}, {0, 80}
+};
+
+// Sonido de hambre: Estómago rugiendo (frecuencias graves fluctuantes y vibrantes)
+const Note SOUND_HUNGER_GROWL[] = {
+    {98, 90}, {115, 80}, {82, 100}, {123, 70}, {75, 120},
+    {0, 40},
+    {87, 100}, {110, 80}, {92, 90}, {73, 140}, {0, 60}
+};
+
+// Sonido de tos / enfermo por CO2 alto ("cof, cof, cof" seco, entrecortado y áspero)
+const Note SOUND_COUGH[] = {
+    {370, 35}, {240, 45}, {140, 60}, {0, 70},
+    {390, 35}, {260, 45}, {150, 70}, {0, 90},
+    {310, 40}, {200, 50}, {120, 80}, {0, 60}
 };
 
 const Note SOUND_EGG[] = {
@@ -103,11 +126,13 @@ const Note SOUND_POP[] = {
 };
 
 const Note SOUND_UNHEALTHY[] = {
-    {392, 80}, {330, 90}, {0, 40}
+    {370, 35}, {240, 45}, {140, 60}, {0, 70},
+    {390, 35}, {260, 45}, {150, 70}, {0, 60}
 };
 
 const Note SOUND_TRANSITION_UNHEALTHY[] = {
-    {587, 60}, {523, 70}, {440, 90}, {0, 30}
+    {587, 60}, {523, 70}, {440, 80}, {0, 30},
+    {370, 40}, {240, 50}, {140, 70}, {0, 40}
 };
 
 const Note SOUND_TRANSITION_RECOVER[] = {
@@ -185,6 +210,11 @@ bool isMuted = false;
 uint32_t lastMuteToggleTime = 0;
 bool lastMutePhysicalState = HIGH;
 
+// Tiempos para alertas sonoras periódicas (hambre, sueño y tos)
+uint32_t lastHungerSoundTime = 0;
+uint32_t lastSleepySoundTime = 0;
+uint32_t lastCoughSoundTime = 0;
+
 // =====================================================
 // PROTOTIPOS
 // =====================================================
@@ -208,6 +238,7 @@ void goToBaseState();
 void triggerDeath(DeathReason reason);
 void drawDeathScreen();
 void resetToEggState();
+void checkConditionSounds();
 bool isTouchActive();
 void showBootMessage();
 void registerFeedSpam();
@@ -766,7 +797,12 @@ void drawDeathScreen()
 
 void resetToEggState()
 {
-    Serial.println("[STATE] Reset -> EGG");
+    Serial.println("[STATE] Reset -> EGG (Todos los valores reiniciados)");
+
+    uint32_t now = millis();
+
+    // Detener cualquier sonido o nota activa de inmediato
+    stopSound();
 
     isHatched = false;
     birthTriggered = false;
@@ -779,9 +815,10 @@ void resetToEggState()
 
     co2High = false;
     currentCO2ppm = 400;
+    displaySmoothCO2 = 400;
     visualUnhealthy = false;
 
-    // Reset estadísticas
+    // Reset estadísticas y causas de muerte
     deathReason = DEATH_NONE;
     deathTime = 0;
     hatchTime = 0;
@@ -791,7 +828,22 @@ void resetToEggState()
     totalPets = 0;
     totalFeeds = 0;
 
-    eggStartTime = millis();
+    // Sincronizar todos los timestamps a 'now' para evitar deltas fantasma al reiniciar
+    eggStartTime = now;
+    lastFeedTestTime = now;
+    lastCO2CheckTime = now;
+    lastAwakeCheckTime = now;
+    lastHappinessDecayTime = now;
+    lastButtonTime = now;
+    lastLightReadTime = now;
+    lastTouchReadTime = now;
+    lastCO2LogicTime = now;
+    lastFrameTime = now;
+    lastHungerSoundTime = now;
+    lastSleepySoundTime = now;
+    lastCoughSoundTime = now;
+
+    lastButtonPhysicalState = HIGH;
 
     currentAnimation = IDLE_EGG;
     currentFrame = 0;
@@ -834,7 +886,22 @@ void showBootMessage()
 
 void registerFeedSpam()
 {
+    // Salvaguarda absoluta: NUNCA contar spam ni morir por sobrealimentación antes de nacer
+    if (!isHatched || currentAnimation == IDLE_EGG || currentAnimation == BIRTH || currentAnimation == DEAD) {
+        rapidFeedCount = 0;
+        firstFeedPressTime = 0;
+        feedRequested = false;
+        return;
+    }
+
     uint32_t now = millis();
+
+    // Período de gracia inicial al nacer: inmune a explosión por pulsaciones impacientes
+    if (now - hatchTime < NEWBORN_GRACE_PERIOD_MS) {
+        rapidFeedCount = 0;
+        firstFeedPressTime = 0;
+        return;
+    }
 
     if (firstFeedPressTime == 0 || (now - firstFeedPressTime > FEED_SPAM_WINDOW_MS)) {
         firstFeedPressTime = now;
@@ -870,12 +937,17 @@ void handleButton()
         if (now - lastButtonTime > DEBOUNCE_MS) {
             lastButtonTime = now;
 
+            // Antes de nacer o durante transiciones/muerte, NUNCA registrar comida ni acumular spam
             if (!isHatched ||
                 currentAnimation == IDLE_EGG ||
                 currentAnimation == BIRTH ||
                 currentAnimation == POP ||
+                currentAnimation == DEAD ||
                 isTransitionAnimation(currentAnimation)) {
-                Serial.println("[BUTTON] ignorado");
+                rapidFeedCount = 0;
+                firstFeedPressTime = 0;
+                feedRequested = false;
+                Serial.println("[BUTTON] ignorado (No nacido / Animación ocupada)");
                 lastButtonPhysicalState = state;
                 return;
             }
@@ -891,6 +963,7 @@ void handleButton()
                 Serial.println("[BUTTON] FEED");
                 feedRequested = true;
                 lastFeedTestTime = now;
+                lastHungerSoundTime = now; // Silenciar alerta de hambre al comer
                 totalFeeds++;
                 setAnimation(FEED);
             }
@@ -1189,6 +1262,58 @@ void updateGameStats()
 }
 
 // =====================================================
+// ALERTAS SONORAS DE CONSTANTES VITALES
+// Rugido de hambre, melodía somnolienta y tos por CO2
+// =====================================================
+
+void checkConditionSounds()
+{
+#if USE_BUZZER
+    if (isMuted || soundPlaying) return;
+    if (!isHatched || currentAnimation == DEAD || currentAnimation == BIRTH || currentAnimation == IDLE_EGG) return;
+
+    uint32_t now = millis();
+
+    // 1. Alerta de CO2 Alto: Tos periódica mientras el aire esté contaminado (Prioridad de peligro)
+    if (hasCO2Feature() && co2High) {
+        if (now - lastCoughSoundTime >= CO2_COUGH_INTERVAL_MS) {
+            lastCoughSoundTime = now;
+            Serial.println("[AUDIO] Tos por CO2 alto");
+            playSoundSequence(SOUND_COUGH, sizeof(SOUND_COUGH) / sizeof(SOUND_COUGH[0]));
+            return;
+        }
+    }
+
+    // Si está durmiendo, no emite rugidos de hambre ni melodías de cansancio activo
+    if (currentAnimation == SLEEP) return;
+
+    // 2. Alerta de Hambre: Rugido de estómago cuando lleva tiempo sin comer
+    if (hasButtonFeature()) {
+        if (now - lastFeedTestTime >= HUNGER_ALERT_TIME_MS) {
+            if (now - lastHungerSoundTime >= HUNGER_SOUND_INTERVAL_MS) {
+                lastHungerSoundTime = now;
+                Serial.println("[AUDIO] Rugido de estómago (hambre)");
+                playSoundSequence(SOUND_HUNGER_GROWL, sizeof(SOUND_HUNGER_GROWL) / sizeof(SOUND_HUNGER_GROWL[0]));
+                return;
+            }
+        }
+    }
+
+    // 3. Alerta de Sueño: Melodía somnolienta descendente cuando lleva mucho tiempo despierto en la luz
+    if (hasLightFeature() && !isDark) {
+        if (continuousAwakeTime >= SLEEP_ALERT_TIME_MS) {
+            if (now - lastSleepySoundTime >= SLEEP_SOUND_INTERVAL_MS) {
+                lastSleepySoundTime = now;
+                Serial.println("[AUDIO] Melodía somnolienta (pide descansar)");
+                playSoundSequence(SOUND_SLEEPY, sizeof(SOUND_SLEEPY) / sizeof(SOUND_SLEEPY[0]));
+                return;
+            }
+        }
+    }
+#endif
+}
+
+// =====================================================
 // SETUP
 // =====================================================
 
@@ -1271,7 +1396,9 @@ void loop()
     // Pantalla de muerte / Game Over activa
     if (currentAnimation == DEAD) {
         updateSound();
-        if (now - deathTime >= DEATH_SCREEN_DURATION_MS) {
+        // Permite reiniciar de inmediato pulsando el botón o tocando el sensor tras 1.5s, o al agotar el tiempo
+        bool skipRequested = (now - deathTime >= 1500) && (isButtonPressed() || isTouchActive());
+        if (skipRequested || (now - deathTime >= DEATH_SCREEN_DURATION_MS)) {
             resetToEggState();
         }
         return;
@@ -1300,6 +1427,9 @@ void loop()
 
     // Actualizar lógica de estado, inanición, felicidad y cansancio
     updateGameStats();
+
+    // Comprobar alertas sonoras ambientales y vitales (hambre, sueño y tos)
+    checkConditionSounds();
 
     updateSound();
 
@@ -1333,11 +1463,15 @@ void loop()
                     lastCO2CheckTime = now;
                     lastAwakeCheckTime = now;
                     lastHappinessDecayTime = now;
+                    lastHungerSoundTime = now;
+                    lastSleepySoundTime = now;
+                    lastCoughSoundTime = now;
                     continuousAwakeTime = 0;
                     highCO2AccumulatedMs = 0;
                     currentHappiness = MAX_HAPPINESS;
                     rapidFeedCount = 0;
                     firstFeedPressTime = 0;
+                    feedRequested = false;
 
                     goToBaseState();
                     return;

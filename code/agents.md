@@ -104,7 +104,14 @@ flowchart TB
 - **Pantalla de Muerte**: Limpia pantalla y despliega causa en español, tiempo vivido, acciones y puntuación final.
 
 ### Agente 4: Sintetizador de Audio No Bloqueante y Silencio (`Audio_Agent`)
-- **Responsabilidad**: Alimentar el periférico LEDC PWM sin retener el microcontrolador y gestionar el silencio por hardware.
+- **Responsabilidad**: Alimentar el periférico LEDC PWM sin retener el microcontrolador, gestionar el silencio por hardware y disparar alertas acústicas reactivas.
+- **Alertas Vitales Dinámicas (`checkConditionSounds`)**:
+  - **Rugido de Estómago (`SOUND_HUNGER_GROWL`)**: Frecuencias graves ondulantes (75Hz-125Hz) emitidas tras 1 minuto sin comer (`HUNGER_ALERT_TIME_MS`), repitiéndose cada 20s. Se silencia al alimentar.
+  - **Melodía Somnolienta (`SOUND_SLEEPY`)**: Nana descendente dulce de 8 notas en escala descendente (Sol5 a Do4) al transcurrir más de 70s despierto (`SLEEP_ALERT_TIME_MS`) y como sintonía de entrada a `SLEEP`.
+  - **Tos / Enfermo por $CO_2$ (`SOUND_COUGH`)**: Secuencia seca y entrecortada de carraspeos ("cof, cof, cof") activa periódicamente (cada 12s) mientras el aire permanezca viciado.
+- **Protección de Nacimiento y Reinicio Integral**:
+  - Al morir o reiniciar, todos los contadores, timestamps y acumuladores se resetean completamente a cero / hora actual.
+  - Antes de nacer (en estado huevo `IDLE_EGG` o `BIRTH`), pulsar el botón de comida no acumula spam ni puede causar la muerte (`rapidFeedCount = 0`). Además, cuenta con un período de gracia de 5s tras nacer (`NEWBORN_GRACE_PERIOD_MS`) inmune a sobrealimentación.
 - **Control de Silencio**:
   - `MUTE_PIN` (GPIO 27) puenteado a GND alterna el estado `isMuted`.
   - Cuando está en silencio, corta cualquier tono activo y bloquea nuevas notas.
