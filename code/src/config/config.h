@@ -45,14 +45,14 @@
 #define BUZZER_VOLUME 40
 
 // Pin para mutear/desmutear: Al puentearlo a GND alterna entre silencio y sonido
-#define MUTE_PIN 27
+#define MUTE_PIN 32
 #define MUTE_DEBOUNCE_MS 200
 
 // =====================================================
 // LUZ & SUEÑO / AGOTAMIENTO
 // =====================================================
 
-#define LIGHT_THRESHOLD 1500
+#define LIGHT_THRESHOLD 2856  // Aproximadamente 2.3 V con ADC de 12 bits y referencia de 3.3 V
 #define LIGHT_READ_INTERVAL_MS 500
 
 // Máximo tiempo sin dormir (si el sensor de luz está activo) -> Muerte por agotamiento: 2.5 min
