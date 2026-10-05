@@ -1,200 +1,297 @@
 # GotchiLab_
 
-Una versión propia creada en **MediaLab_** del clásico Tamagotchi. Está pensada para poder enseñar a niños y jóvenes electrónica básica, sensores, respuestas y reacciones de una forma gráfica, interactiva y educativa.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Platform: ESP32](https://img.shields.io/badge/Platform-ESP32-blue.svg)](https://www.espressif.com/)
+[![Framework: Arduino](https://img.shields.io/badge/Framework-Arduino-teal.svg)](https://www.arduino.cc/)
+[![Toolchain: PlatformIO](https://img.shields.io/badge/Toolchain-PlatformIO-orange.svg)](https://platformio.org/)
 
-La mascota es un pequeño pingüino animado que vive dentro de una pantalla OLED SSD1306 y que reacciona tanto a interacciones del usuario (pulsador, caricias táctiles, pin de silencio) como a las condiciones del entorno físico (luminosidad ambiente y niveles de $CO_2$).
+**GotchiLab_** es una mascota electrónica interactiva de código abierto diseñada y desarrollada en **MediaLab_** para talleres educativos de tecnología y divulgación **STEAM** (Ciencia, Tecnología, Ingeniería, Arte y Matemáticas).
 
-Este proyecto se utiliza principalmente en talleres formativos de MediaLab_, donde los participantes montan el hardware en protoboard y cargan el firmware en un microcontrolador **ESP32 DevKit v1**.
-
----
-
-# Autor
-
-Proyecto creado por:
-
-**José Escobedo Vázquez**  
-Integrante de MediaLab_
+La criatura virtual es un pingüino animado que habita en una pantalla OLED monocromática de 128x64 píxeles gobernada por un microcontrolador **ESP32 DevKit v1**. El firmware reacciona tanto a estímulos directos del usuario (pulsador de alimentación, caricias táctiles capacitivas, conmutador de sonido) como a magnitudes físicas ambientales (nivel de luminosidad mediante fotorresistencia LDR y concentración de dióxido de carbono $CO_2$ mediante sensor óptico NDIR).
 
 ---
 
-# Descripción del Proyecto
+## Índice
 
-GotchiLab_ es una mascota virtual interactiva que integra una **Máquina de Estados Finita (FSM)**, un **motor de renderizado monocromático con offsets**, retroalimentación de **audio polifónico/tonos mediante PWM (LEDC)** con pin de silencio rápido (`MUTE_PIN`), y un sistema completo de **constantes vitales en segundo plano (modo inmersivo)** con causas de muerte en español y cálculo de puntuación final.
-
-El ciclo de vida comienza con un huevo:
-- **Con sensor táctil** $\rightarrow$ eclosiona al acariciar o tocar el sensor.
-- **Sin sensor táctil** $\rightarrow$ eclosión automática tras unos segundos configurables (`AUTO_HATCH_DELAY_MS`).
-
----
-
-# Interacciones y Dinámicas del Juego
-
-| Interacción | Acción en el Gotchi | Efecto en la Lógica de Supervivencia |
-| :--- | :--- | :--- |
-| **Tocar el sensor touch (en huevo)** | El huevo eclosiona y nace el pingüino (`BIRTH`). | Inicializa los cronómetros vitales de juego. |
-| **Pulsar el botón** | El pingüino come (`FEED`). | Satisface el hambre y resetea el contador de inanición (3 min). |
-| **Tocar el sensor touch (vivo)** | El pingüino recibe una caricia (`PET`). | Aumenta el nivel de felicidad interna. |
-| **Oscuridad (tapar LDR)** | El pingüino se duerme (`SLEEP`). | Recupera energía progresivamente mientras descansa. |
-| **Volver a iluminar** | El pingüino despierta y vuelve al reposo. | Conserva la energía acumulada según el tiempo que durmió. |
-| **$CO_2$ alto ($\ge 1600$ ppm)** | Se enferma (`TRANSITION_TO_UNHEALTHY`). | Disminuye su salud respiratoria y acumula tiempo de asfixia. |
-| **$CO_2$ normal ($\le 1100$ ppm)** | Se recupera sanando (`TRANSITION_TO_HEALTHY`). | Recupera salud respiratoria de forma acelerada (3x). |
-| **Puentear GPIO 27 a GND** | Activa / Desactiva el sonido (*Mute Toggle*). | Silencia por completo o restaura el volumen con un *bip*. |
-| **Pulsar spam de comida** | El pingüino explota (`POP`) y fallece. | Muerte inmediata por sobrealimentación. |
-| **Falta de comida (3 min)** | Muere por inanición. | Activa la marcha fúnebre y la pantalla de Game Over. |
-| **Exceso de $CO_2$ prolongado (60s)**| Muere por intoxicación / asfixia. | Activa la marcha fúnebre y la pantalla de Game Over. |
-| **Privación de sueño continua** | Muere por agotamiento extremo. | Activa la marcha fúnebre y la pantalla de Game Over. |
+1. [Objetivos Educativos STEAM](#1-objetivos-educativos-steam)
+2. [Arquitectura del Firmware y Ciclo de Vida](#2-arquitectura-del-firmware-y-ciclo-de-vida)
+3. [Asignación de Pines (Pinout Unificado)](#3-asignación-de-pines-pinout-unificado)
+4. [Ajuste y Calibración Analógica del Divisor LDR](#4-ajuste-y-calibración-analógica-del-divisor-ldr)
+5. [Bypass Hardware de CO2: Modo Ferias y Demostraciones](#5-bypass-hardware-de-co2-modo-ferias-y-demostraciones)
+6. [Máquina de Estados y Secuencia Gráfica de Muerte](#6-máquina-de-estados-y-secuencia-gráfica-de-muerte)
+7. [Ciclo de Vida Autocontenido (Sin Persistencia)](#7-ciclo-de-vida-autocontenido-sin-persistencia)
+8. [Guía de Compilación y Carga con PlatformIO](#8-guía-de-compilación-y-carga-con-platformio)
+9. [Generación de Binario Unificado y Flasheo Web](#9-generación-de-binario-unificado-y-flasheo-web)
+10. [Estructura del Proyecto](#10-estructura-del-proyecto)
+11. [Licencia](#11-licencia)
 
 ---
 
-# Modo de Juego Inmersivo (Estados en Segundo Plano)
+## 1. Objetivos Educativos STEAM
 
-Para que el jugador deba prestar atención continua a la mascota y cuidarla de forma intuitiva, **la barra superior de estado se encuentra oculta de la pantalla**:
-- La pantalla OLED de 128x64 se dedica **íntegramente a las animaciones** del pingüino a pantalla completa.
-- **Toda la lógica de supervivencia sigue ejecutándose en segundo plano**:
-  1. **Hambre e Inanición**: Debes alimentarlo periódicamente con el botón; si pasa 3 minutos continuos sin comer, morirá de inanición. Si lo sobrealimentas (spam), explotará (`POP`).
-  2. **Felicidad y Afecto**: Necesita caricias táctiles frecuentes para mantener su alegría de fondo.
-  3. **Salud Respiratoria ($CO_2$)**: Inicia a tope (salud máxima a 400 ppm). Si el sensor detecta aire viciado continuo, enfermará y podrá morir por asfixia si no se ventila a tiempo. Al ventilarse, recupera su salud rápidamente.
-  4. **Sueño y Descanso**: Si se deja mucho tiempo con luz sin descansar, acumulará fatiga de fondo hasta morir por agotamiento. Al apagar la luz / tapar el LDR, recupera energía de forma progresiva.
-- *(Opcional)*: Si en algún momento deseas volver a ver los medidores en pantalla, puedes cambiar `#define SHOW_STATS_OVERLAY 1` en `src/config/config.h`.
+El proyecto busca desmitificar el desarrollo de sistemas embebidos mediante una experiencia tangible:
+- **Electrónica Analógica y Digital**: Comprensión práctica de divisores resistivos, saturación de sensores LDR, buses de comunicación serie ($I^2C$), transductores piezoeléctricos PWM y sensores capacitivos táctiles.
+- **Calidad del Aire y Conciencia Ambiental**: Introducción a la física de gases y sensores infrarrojos no dispersivos (NDIR) con el Sensirion SCD30, relacionando la concentración de $CO_2$ en recintos cerrados con la salud de la mascota.
+- **Ingeniería de Software para Sistemas Embebidos**: Implementación de una Máquina de Estados Finita (FSM), eliminación de bloqueos (`delay()`) en favor de contadores no bloqueantes con `millis()`, gestión de buffers gráficos en RAM y modularidad tolerante a ausencias de hardware.
 
 ---
 
-# Función de Silencio (Mute Toggle en GPIO 27)
+## 2. Arquitectura del Firmware y Ciclo de Vida
 
-El sistema incluye una función de hardware para silenciar al pingüino sin necesidad de desconectar el buzzer:
-- **Pin asignado**: `GPIO 27` (configurado como `INPUT_PULLUP`).
-- **Uso**: Al puentear un cable o pulsador entre **GPIO 27** y **GND**, el sonido se apaga de inmediato.
-- **Restauración**: Al volver a puentearlo a **GND**, el sonido se reactiva y emite un breve tono confirmatorio.
+El sistema opera bajo un bucle cooperativo en tiempo real gobernado por `code/src/main.cpp`:
+- **Capa Gráfica**: 15 cuadros monocromáticos de 128x64 píxeles por animación (1024 bytes/cuadro empaquetados en memoria Flash), renderizados a 5 FPS (200 ms por cuadro) con offsets verticales dinámicos.
+- **Audio PWM**: Controlador de sonido sobre el canal 0 del generador LEDC del ESP32 con secuencias de notas no bloqueantes y conmutación de silencio por hardware.
+- **Monitor de Constantes Vitales**: Evaluación periódica de hambre, afecto, fatiga por vigilia prolongada y toxicidad por $CO_2$.
 
----
-
-# Pantalla de Muerte, Game Over y Puntuación
-
-Cuando se produce el deceso por cualquiera de las condiciones, el microcontrolador reproduce una marcha fúnebre mediante PWM (si no está muteado) y presenta la pantalla final durante 9 segundos antes de reiniciar el huevo:
-
-- **Causa de Muerte**:
-  - `INANICION 3m`: Si estuvo más de 180 s sin comer.
-  - `EXPLOTO (POP)!`: Si se sobrealimentó con pulsaciones rápidas.
-  - `ASFIXIA (CO2)`: Si acumuló más de 60 s en ambiente tóxico sin ventilar.
-  - `AGOTAMIENTO`: Si estuvo despierto sin dormir más del tiempo límite (2.5 min).
-- **Tiempo de Supervivencia**: Segundos exactos que se mantuvo vivo tras eclosionar.
-- **Cuidados Registrados**: Conteo total de caricias y alimentaciones exitosas.
-- **Puntuación Final**:
-  $$\text{Puntuación} = (\text{Segundos vivos} \times 10) + (\text{Comidas} \times 15) + (\text{Caricias} \times 20) - \text{Penalizaciones}$$
-
----
-
-# Características del Sistema y Estados (FSM)
-
-| Estado | Descripción |
-| :--- | :--- |
-| `IDLE_EGG` | Estado inicial en reposo dentro del cascarón |
-| `BIRTH` | Animación de nacimiento (bloqueante) |
-| `IDLE` | Reposo normal y saludable |
-| `IDLE_UNHEALTHY` | Estado enfermo por concentración de $CO_2$ |
-| `TRANSITION_TO_UNHEALTHY` | Transición de sano a enfermo (bloqueante) |
-| `TRANSITION_TO_HEALTHY` | Recuperación a sano (animación invertida, bloqueante) |
-| `FEED` | Animación de comer (bloqueante) |
-| `PET` | Animación de recibir caricia (bloqueante) |
-| `SLEEP` | Dormir (pausado en frame 10 mientras siga oscuro) |
-| `POP` | Animación de explosión por sobrealimentación |
-| `DEAD` | Pantalla de Game Over con estadísticas y sonido fúnebre |
-
----
-
-# Hardware
-
-### Componentes Necesarios
-
-| Componente | Cantidad | Descripción |
-| :--- | :--- | :--- |
-| **ESP32 DevKit v1** | 1 | Microcontrolador principal (30 o 36 pines) |
-| **Pantalla OLED SSD1306** | 1 | Display monocromo 128x64 I2C (dirección 0x3C) |
-| **Sensor de $CO_2$ Sensirion SCD30** | 1 | Sensor NDIR óptico I2C de alta precisión |
-| **Sensor Touch Capacitivo** | 1 | Módulo TTP223 digital |
-| **Fotoresistencia (LDR)** | 1 | Sensor de luz en divisor de tensión con resistencia 10kΩ |
-| **Resistencia 10kΩ** | 1 | Pull-down para el sensor LDR |
-| **Pulsador** | 1 | Push button normalmente abierto |
-| **Buzzer pasivo** | 1 | Buzzer piezoeléctrico accionado por PWM |
-| **Protoboard y Cables** | varios | Montaje en placa de pruebas y jumpers Dupont |
-
-### Configuración de Pines
-
-| Componente | Pin ESP32 | Modo / Configuración |
-| :--- | :--- | :--- |
-| **OLED SDA** | GPIO 22 | I2C Data (compartido con SCD30) |
-| **OLED SCL** | GPIO 21 | I2C Clock (compartido con SCD30) |
-| **SCD30 SDA** | GPIO 22 | I2C Data (compartido con OLED) |
-| **SCD30 SCL** | GPIO 21 | I2C Clock (compartido con OLED) |
-| **Pulsador** | GPIO 33 | `INPUT_PULLUP` (pulsación activa a GND) |
-| **Sensor Touch** | GPIO 14 | `INPUT` digital (HIGH al tocar) |
-| **Sensor Luz (LDR)** | GPIO 34 | `INPUT` analógico (ADC) |
-| **Buzzer** | GPIO 26 | Salida LEDC PWM (Canal 0, Resolución 8 bits) |
-| **Mute (Silencio)** | GPIO 27 | `INPUT_PULLUP` (Puentear a GND alterna entre silencio y sonido) |
-
----
-
-# Modularidad y Sensores Opcionales
-
-El firmware es **100% tolerante a la ausencia de hardware**. Mediante directivas de precompilación en `src/config/config.h`, se puede desconectar cualquier componente:
-
-```cpp
-#define USE_BUTTON_SENSOR       1  // 0: Sin botón ni muerte por inanición
-#define USE_TOUCH_SENSOR        1  // 0: Nace solo, sin caricias ni decaimiento de afecto
-#define USE_LIGHT_SENSOR        1  // 0: Siempre despierto, sin muerte por insomnio
-#define USE_CO2_SENSOR          1  // 0: Siempre sano a 400 ppm, sin asfixia
-#define USE_BUZZER              1  // 0: Silencio total
-#define SHOW_STATS_OVERLAY      0  // 0: Modo inmersivo pantalla limpia, 1: HUD visible
+```mermaid
+flowchart TD
+    EGG([Huevo IDLE_EGG]) -->|Toque TTP223 / Auto| BIRTH([Nacimiento BIRTH])
+    BIRTH --> IDLE([Reposo Saludable IDLE])
+    
+    IDLE -->|Pulsador| FEED([Comiendo FEED])
+    FEED --> IDLE
+    
+    IDLE -->|Toque TTP223| PET([Caricia PET])
+    PET --> IDLE
+    
+    IDLE -->|Oscuridad LDR| SLEEP([Durmiendo SLEEP])
+    SLEEP -->|Luz LDR| IDLE
+    
+    IDLE -->|CO2 >= 1600 ppm| T_UNHEALTHY([Transicion Enfermo])
+    T_UNHEALTHY --> SICK([Reposo Enfermo IDLE_UNHEALTHY])
+    SICK -->|CO2 <= 1100 ppm| T_HEALTHY([Transicion Sano])
+    T_HEALTHY --> IDLE
+    
+    IDLE -.->|Inanicion / CO2 / Agotamiento / Spam| POP([Explosion POP - 15 Frames])
+    SICK -.->|Inanicion / CO2 / Agotamiento| POP
+    
+    POP --> DEAD([Pantalla Game Over y Puntuacion])
+    DEAD -->|Timeout 9s / Reset Pulsador tras 1.5s| EGG
 ```
 
-> **Garantía Senior**: Si un sensor está en `0`, sus reglas de muerte quedan completamente deshabilitadas para que el juego nunca penalice al usuario por sensores ausentes.
+---
+
+## 3. Asignación de Pines (Pinout Unificado)
+
+La arquitectura centraliza la asignación de pines en `code/include/pins_config.h`:
+
+| Periférico / Señal | Pin ESP32 | Modo GPIO | Descripción Técnica |
+| :--- | :---: | :---: | :--- |
+| **I2C SDA** (OLED & SCD30) | `GPIO 22` | $I^2C$ Data | Bus de datos bidireccional compartido |
+| **I2C SCL** (OLED & SCD30) | `GPIO 21` | $I^2C$ Clock | Señal de reloj de bus serie compartido |
+| **Pulsador Alimentar** | `GPIO 33` | `INPUT_PULLUP` | Pulsador activo a nivel bajo (GND) |
+| **Sensor Táctil (TTP223)** | `GPIO 27` | `INPUT` | Entrada digital activa a nivel alto (VCC) |
+| **Sensor de Luz (LDR)** | `GPIO 34` | `ADC1_CH6` | Entrada analógica (solo lectura, sin pull-up) |
+| **Buzzer Piezoeléctrico** | `GPIO 26` | Salida LEDC | Modulación PWM (Canal 0, 8 bits) |
+| **Conmutador Silencio (Mute)** | `GPIO 32` | `INPUT_PULLUP` | Puente a GND conmuta entre sonido y silencio |
+| **Modo Ferias (Bypass CO2)** | `GPIO 25` | `INPUT_PULLUP` | Jumper a GND: anula inicialización de $CO_2$ |
 
 ---
 
-# Software y Compilación
+## 4. Ajuste y Calibración Analógica del Divisor LDR
 
-Firmware desarrollado en C++ bajo **PlatformIO** (Framework Arduino para ESP32).
+### Topología del Circuito
+El sensor de luz implementa un divisor de tensión resistivo entre la línea de 3.3V y masa:
 
-### Librerías Requeridas (`platformio.ini`):
-- `adafruit/Adafruit GFX Library`
-- `adafruit/Adafruit SSD1306`
-- `sparkFun/SparkFun SCD30 Arduino Library`
-- `sparkFun/SparkFun SCD4x Arduino Library`
-- `Wire`
+```text
+       3.3V (VCC)
+           │
+         ┌─┴─┐
+         │LDR│ (Fotorresistencia)
+         └─┬─┘
+           ├───────> GPIO 34 (ADC1_CH6 del ESP32)
+         ┌─┴─┐
+         │10k│ (Resistencia Pull-Down de 10 kΩ)
+         └─┬─┘
+           │
+          GND
+```
 
-### Comandos de Compilación y Carga:
+### Ecuación de Transferencia
+$$V_{out} = V_{CC} \cdot \left( \frac{R_{pull}}{R_{LDR} + R_{pull}} \right)$$
+
+$$\text{Cuentas ADC (12 bits)} = \left( \frac{V_{out}}{3.3\,\text{V}} \right) \cdot 4095$$
+
+- **En luz ambiente**: La resistencia $R_{LDR}$ cae a valores bajos (~1 kΩ a 5 kΩ), por lo que $V_{out} \approx 2.75\,\text{V}$ (ADC $\approx 3412$).
+- **En oscuridad (tapado)**: La resistencia $R_{LDR}$ aumenta drásticamente (> 50 kΩ a 100+ kΩ), por lo que $V_{out}$ cae por debajo de $1.0\,\text{V}$ (ADC < 1240).
+
+### Calibración Paso a Paso con Multímetro
+1. Configura el multímetro en escala de tensión continua (**DC Voltios**, rango 20V o 2V).
+2. Conecta la sonda negra a **GND** y la sonda roja al punto medio del divisor (**GPIO 34**).
+3. Mide la tensión en condiciones de iluminación de trabajo ($V_{luz} \approx 2.5\,\text{V} - 3.0\,\text{V}$).
+4. Cubre completamente la fotorresistencia con el dedo y anota la tensión mínima ($V_{oscuro} \approx 0.5\,\text{V} - 1.5\,\text{V}$).
+5. Establece el punto de conmutación en el valor medio:
+   $$V_{umbral} = \frac{V_{luz} + V_{oscuro}}{2}$$
+   $$\text{LDR\_DARK\_THRESHOLD} = \left(\frac{V_{umbral}}{3.3\,\text{V}}\right) \cdot 4095$$
+6. Actualiza la constante `LDR_DARK_THRESHOLD` en `code/include/config.h` (valor predeterminado: **2856**, correspondiente a ~2.30V).
+
+### Telemetría Serie de Depuración
+Para verificar lecturas en tiempo real sin cálculos manuales, activa la directiva en `code/include/config.h`:
+```cpp
+#define DEBUG_LDR_CALIBRATION 1
+```
+Abre la consola serie a **115200 baudios** para observar el volcado continuo:
+```text
+[LDR DEBUG] ADC Raw: 3120/4095 | Voltaje: 2.512 V | Umbral: 2856 | Estado: ILUMINADO (DESPIERTO)
+[LDR DEBUG] ADC Raw: 1150/4095 | Voltaje: 0.926 V | Umbral: 2856 | Estado: OSCURO (DORMIR)
+```
+
+---
+
+## 5. Bypass Hardware de CO2: Modo Ferias y Demostraciones
+
+En eventos masivos, ferias de ciencias o aulas cerradas, la concentración de $CO_2$ suele superar con facilidad los 1600 ppm, provocando que la mascota enferme continuamente o muera por asfixia en menos de un minuto durante las explicaciones.
+
+Para solventarlo sin recompilar el código:
+1. **Jumper Físico**: Se define `PIN_FAIR_MODE` en `GPIO 25` configurado con `INPUT_PULLUP`.
+2. **Detección en Arranque**: Durante el `setup()`, el microcontrolador verifica el estado de `GPIO 25`:
+   - Si está conectado a **GND** mediante un jumper o cable Dupont:
+     - Se omite la inicialización de la librería del sensor SCD30 y el tráfico por el bus $I^2C$.
+     - La variable interna `co2SensorEnabled` pasa a `false`.
+     - Las lecturas devuelven un valor nominal limpio y constante de **400 ppm**.
+     - La máquina de estados ignora totalmente las penalizaciones y alertas respiratorias.
+   - Si el jumper está abierto (flotante / HIGH): El sensor NDIR opera con normalidad.
+
+### Exclusión Completa en Compilación
+Si se construye una versión económica de la mascota sin el sensor Sensirion SCD30 instalado físicamente, puede excluirse íntegramente del binario definiendo en `code/include/config.h`:
+```cpp
+#define USE_CO2_SENSOR 0
+```
+
+---
+
+## 6. Máquina de Estados y Secuencia Gráfica de Muerte
+
+Para ofrecer un dramatismo lúdico intuitivo y eliminar transiciones abruptas:
+
+1. **Detección de Fallecimiento**: Cuando se cumple cualquier condición crítica (inanición, asfixia por $CO_2$, privación de sueño o sobrealimentación), la función `triggerDeath(reason)` captura la causa y el timestamp.
+2. **Ejecución Obligatoria de Animación "POP"**:
+   - El sistema entra en el estado `POP` reproduciendo los 15 cuadros de explosión/desvanecimiento (`penguin_pop_anim`) a 200 ms por cuadro (3 segundos en total).
+   - Se silencia cualquier sonido ambiental y se reproduce el efecto acústico de explosión.
+3. **Transición a Pantalla de Game Over**:
+   - Una vez finalizado el cuadro 14 de `POP`, la máquina conmuta formalmente a `DEAD`.
+   - Se activa la marcha fúnebre mediante PWM.
+   - Se limpia el buffer de vídeo y se imprime la esquela con:
+     * Causa específica de defunción.
+     * Segundos totales vividos tras la eclosión.
+     * Cuidados totales (caricias táctiles y alimentaciones con éxito).
+     * Puntuación matemática final.
+4. **Buffer Libre de Parpadeos (*Flicker-Free*)**:
+   - Todas las operaciones de renderizado se realizan exclusivamente en la memoria RAM del ESP32 (buffer de 1024 bytes de Adafruit_SSD1306).
+   - La pantalla solo se actualiza en bloque mediante una única transacción $I^2C$ (`display.display()`), garantizando ausencia total de artefactos visuales.
+
+---
+
+## 7. Ciclo de Vida Autocontenido (Sin Persistencia)
+
+Siguiendo la especificación de diseño educativo:
+- **Cero Persistencia**: Se eliminan todas las dependencias de memoria no volátil (`Preferences.h`, `EEPROM.h`, NVS flash).
+- **Reinicio Integral**: Al expirar el tiempo de la pantalla de muerte (9 segundos) o al presionar cualquier botón tras 1.5 segundos de gracia, la función `resetToEggState()` restablece de forma absoluta e incondicional todos los temporizadores, acumuladores de daño, banderas de estado, contadores de spam y variables de felicidad a sus valores base.
+- Cada partida es un experimento nuevo, autónomo e independiente.
+
+---
+
+## 8. Guía de Compilación y Carga con PlatformIO
+
+### Requisitos Previos
+- [PlatformIO Core (CLI)](https://docs.platformio.org/en/latest/core/index.html) o extensión oficial de PlatformIO para [Visual Studio Code](https://code.visualstudio.com/).
+- Cable USB de datos conectado al ESP32.
+
+### Compilación desde CLI
+
+Accede al directorio `code/`:
 ```bash
-# Compilar proyecto
+cd code
+```
+
+```bash
+# Compilar el proyecto completo
 pio run
+```
 
-# Cargar al ESP32 (especificando puerto si es necesario)
-pio run -t upload --upload-port COM12
+### Carga al Microcontrolador
 
-# Monitor serie
+```bash
+# Carga automática en el primer puerto detectado:
+pio run -t upload
+
+# O especificando el puerto COM (Windows) o /dev/ttyUSB* (Linux/Mac):
+pio run -t upload --upload-port COM3
+```
+
+### Monitor Serie
+
+```bash
 pio device monitor -b 115200
 ```
 
 ---
 
-# Estructura del Repositorio
+## 9. Generación de Binario Unificado y Flasheo Web
+
+Para talleres masivos donde los alumnos no disponen del entorno de desarrollo ni de compiladores, se puede fusionar el bootloader, las tablas de partición y el firmware en un único archivo binario (`firmware_merged.bin`) para grabarlo directamente desde el navegador web o con `esptool`.
+
+### 1. Generar el Binario Fusionado con esptool
+Tras compilar con PlatformIO (`pio run`), ejecuta la siguiente orden desde el directorio `code/`:
+
+```bash
+python -m esptool --chip esp32 merge_bin -o firmware_merged.bin \
+  --flash_mode dio --flash_freq 40m --flash_size 4MB \
+  0x1000 .pio/build/esp32dev/bootloader.bin \
+  0x8000 .pio/build/esp32dev/partitions.bin \
+  0x10000 .pio/build/esp32dev/firmware.bin
+```
+
+> [!TIP]
+> Si utilizas la herramienta interna de PlatformIO, la ruta suele ser:
+> `~/.platformio/packages/tool-esptoolpy/esptool.py`
+
+### 2. Flashear sin Compilar mediante Línea de Comandos
+Para programar un microcontrolador virgen con el archivo generado:
+
+```bash
+python -m esptool --chip esp32 --port COM3 --baud 460800 write_flash 0x0 firmware_merged.bin
+```
+
+### 3. Flasheo Web (ESP Web Tools / Navegador Web)
+1. Conecta el ESP32 al ordenador mediante cable USB.
+2. Abre Google Chrome o Microsoft Edge y visita una plataforma de programación web compatible con WebSerial (como [ESP Web Tools](https://esphome.github.io/esp-web-tools/) o [Adafruit WebSerial ESPTool](https://adafruit.github.io/Adafruit_WebSerial_ESPTool/)).
+3. Selecciona **Connect** y elige el puerto serie del ESP32.
+4. Carga el archivo `firmware_merged.bin` en el offset `0x0000` (o `0x0`).
+5. Pulsa **Program / Flash**. El firmware se cargará en segundos sin requerir instalación de Python, drivers ni software de compilación.
+
+---
+
+## 10. Estructura del Proyecto
 
 ```text
 GotchiLab_/
-├── code/
-│   ├── platformio.ini              # Configuración del entorno y dependencias
-│   ├── agents.md                   # Especificación de roles y arquitectura de agentes
-│   └── src/
-│       ├── main.cpp                # Firmware principal, FSM, audio, mute y Game Over
-│       ├── config/
-│       │   └── config.h            # Feature flags, pines, umbrales y tiempos de juego
-│       ├── sensors/
-│       │   ├── sensors.h           # Declaración del subsistema de sensores
-│       │   └── sensors.cpp         # Lógica SCD30 con descarte de anomalías y botones
-│       └── animations/             # Arrays de animación monocromáticos en Flash (15 frames)
-├── Esquematico/                    # Esquemas de cableado y circuitos (Fritzing, PDF, PNG)
-├── VideoToCarray/                  # Herramienta de conversión de vídeo MP4 a arrays C
-│   └── mp4_a_c_array_v2.py         # Script OpenCV para generar animaciones
-├── prompt.md                       # Especificación completa, prompt de regeneración y diagrama de contexto
-├── GotchiLab_.pdf                  # Guía didáctica para talleres educativos
-└── README.md                       # Este archivo
+├── LICENSE                         # Licencia de software de código abierto MIT
+├── README.md                       # Manual técnico y guía de ingeniería
+├── prompt.md                       # Especificación maestra del sistema
+├── GotchiLab_.pdf                  # Guía didáctica para talleres presenciales
+├── Esquematico/                    # Esquemas Fritzing (.fzz), partes (.fzpz), PDF y PNG
+├── PlacaSTL/                       # Archivos de fabricación 3D para chasis y PCB
+├── VideoToCarray/                  # Pipeline Python/OpenCV para conversión de vídeo a C
+└── code/
+    ├── platformio.ini              # Configuración PlatformIO (ESP32 DevKit v1)
+    ├── include/
+    │   ├── pins_config.h           # Centralización de GPIOs y asignación de pines
+    │   └── config.h                # Feature flags, umbrales y tiempos de supervivencia
+    └── src/
+        ├── main.cpp                # FSM principal, gestión gráfica, audio y loop vital
+        ├── config/
+        │   └── config.h            # Reenvío de compatibilidad hacia include/config.h
+        ├── sensors/
+        │   ├── sensors.h           # Declaración del subsistema de sensores
+        │   └── sensors.cpp         # SCD30 con bypass por jumper de ferias y botón
+        └── animations/             # Cuadros de animación monocromáticos en Flash (15 frames)
 ```
+
+---
+
+## 11. Licencia
+
+Este proyecto está distribuido bajo la licencia de código abierto **MIT**. Consulta el archivo [LICENSE](LICENSE) para más detalles.
+
+Desarrollado con pasión para la comunidad maker y educativa por **José Escobedo Vázquez** en **MediaLab_**.

@@ -108,17 +108,20 @@ flowchart TB
 
 ### 3.2 Asignación de Pines (Pinout)
 
-| Componente | Pin del ESP32 | Modo / Configuración | Función |
-| :--- | :--- | :--- | :--- |
+Todas las asignaciones están centralizadas en `include/pins_config.h`:
+
+| Componente | Pin ESP32 | Modo / Configuración | Función |
+| :--- | :---: | :--- | :--- |
 | **OLED SDA** | GPIO 22 | I2C Data (Wire) | Bus de datos display (compartido) |
 | **OLED SCL** | GPIO 21 | I2C Clock (Wire) | Bus de reloj display (compartido) |
 | **SCD30 SDA** | GPIO 22 | I2C Data (Wire) | Bus de datos sensor CO₂ |
 | **SCD30 SCL** | GPIO 21 | I2C Clock (Wire) | Bus de reloj sensor CO₂ |
 | **Pulsador** | GPIO 33 | `INPUT_PULLUP` | Detección de pulsación a GND (Comer / Spam) |
-| **Sensor Touch** | GPIO 14 | `INPUT` digital | Señal digital HIGH cuando se toca (Caricia / Nacer) |
-| **Sensor Luz (LDR)** | GPIO 34 | `INPUT` analógico (ADC1_CH6) | Lectura de voltaje de luminosidad |
+| **Sensor Touch** | GPIO 27 | `INPUT` digital | Señal digital HIGH cuando se toca (Caricia / Nacer) |
+| **Sensor Luz (LDR)** | GPIO 34 | `INPUT` analógico (ADC1_CH6) | Lectura de voltaje de luminosidad (11dB / 12 bits) |
 | **Buzzer** | GPIO 26 | Salida LEDC (Canal 0) | Generación de tonos audibles mediante PWM |
-| **Mute (Silencio)** | GPIO 27 | `INPUT_PULLUP` | Puentear a GND conmuta entre silencio y sonido |
+| **Mute (Silencio)** | GPIO 32 | `INPUT_PULLUP` | Puentear a GND conmuta entre silencio y sonido |
+| **Modo Ferias (Bypass CO₂)** | GPIO 25 | `INPUT_PULLUP` | Jumper a GND: anula inicialización de CO₂ |
 
 ---
 
@@ -126,35 +129,39 @@ flowchart TB
 
 ```text
 GotchiLab_/
-├── code/
-│   ├── platformio.ini              # Configuración PlatformIO (esp32dev, lib_deps)
-│   ├── agents.md                   # Definición de arquitectura de agentes y contratos
-│   └── src/
-│       ├── main.cpp                # FSM principal, audio, mute, lógica vital y Game Over
-│       ├── config/
-│       │   └── config.h            # Parámetros, constantes, pines y feature flags
-│       ├── sensors/
-│       │   ├── sensors.h           # Declaración del subsistema de sensores
-│       │   └── sensors.cpp         # Implementación de lectura SCD30 y botones
-│       └── animations/             # Arrays C con frames monocromáticos y offsets
-│           ├── penguin_birth_anim.[c|h]
-│           ├── penguin_feed_anim.[c|h]
-│           ├── penguin_idle_anim.[c|h]
-│           ├── penguin_idle_egg_anim.[c|h]
-│           ├── penguin_idle_unhealthy_anim.[c|h]
-│           ├── penguin_pet_anim.[c|h]
-│           ├── penguin_pop_anim.[c|h]
-│           ├── penguin_sleep_anim.[c|h]
-│           └── penguin_transition_unhealthy_anim.[c|h]
+├── LICENSE                         # Licencia de código abierto MIT
+├── README.md                       # Documentación técnica completa del repositorio
+├── prompt.md                       # ESTE ARCHIVO: Especificación maestra y prompt de generación
+├── GotchiLab_.pdf                  # Documento didáctico para participantes del taller
 ├── Esquematico/                    # Esquemas Fritzing (.fzz), partes (.fzpz), PDF y PNG
+├── PlacaSTL/                       # Modelos 3D de caja y PCB
 ├── VideoToCarray/                  # Herramientas de extracción de frames
 │   ├── mp4_a_c_array_v2.py         # Script Python de vídeo a arrays C empaquetados
 │   ├── ComprobarBitArray.html      # Test de formato y bits
 │   ├── VisorAnimacionCArrayOLED.html # Simulador web de animación en display OLED
 │   └── Recursos/                   # Vídeos fuente MP4 y assets
-├── GotchiLab_.pdf                  # Documento didáctico para participantes del taller
-├── README.md                       # Documentación rápida del repositorio
-└── prompt.md                       # ESTE ARCHIVO: Especificación maestra y prompt de generación
+└── code/
+    ├── platformio.ini              # Configuración PlatformIO (ESP32 DevKit v1)
+    ├── include/
+    │   ├── pins_config.h           # Centralización de GPIOs y asignación de pines
+    │   └── config.h                # Feature flags, umbrales y tiempos de juego
+    └── src/
+        ├── main.cpp                # FSM principal, audio, mute, animación POP y ciclo de vida limpio
+        ├── config/
+        │   └── config.h            # Reenvío de compatibilidad hacia include/config.h
+        ├── sensors/
+        │   ├── sensors.h           # Declaración del subsistema de sensores con bypass modo ferias
+        │   └── sensors.cpp         # Implementación SCD30 y botón con bypass
+        └── animations/             # Arrays C con frames monocromáticos y offsets
+            ├── penguin_birth_anim.[c|h]
+            ├── penguin_feed_anim.[c|h]
+            ├── penguin_idle_anim.[c|h]
+            ├── penguin_idle_egg_anim.[c|h]
+            ├── penguin_idle_unhealthy_anim.[c|h]
+            ├── penguin_pet_anim.[c|h]
+            ├── penguin_pop_anim.[c|h]
+            ├── penguin_sleep_anim.[c|h]
+            └── penguin_transition_unhealthy_anim.[c|h]
 ```
 
 ---

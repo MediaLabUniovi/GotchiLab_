@@ -32,11 +32,11 @@ La misión es dotar al GotchiLab_ de una dinámica de juego Tamagotchi completa,
 ```mermaid
 flowchart TB
     subgraph SENSORES_INPUTS ["Agente de Entradas / Sensores"]
-        TouchSense["TTP223 (Touch GPIO 14)\n-> Caricias & Nacimiento"]
+        TouchSense["TTP223 (Touch GPIO 27)\n-> Caricias & Nacimiento"]
         BtnSense["Push Button (GPIO 33)\n-> Alimentación & Detección Spam"]
         LdrSense["LDR Luz (GPIO 34 ADC)\n-> Ciclos Día/Noche & Sueño"]
         CO2Sense["SCD30 (I2C SDA:22, SCL:21)\n-> Monitoreo PPM CO₂"]
-        MuteSense["Mute Pin (GPIO 27 PULLUP)\n-> Toggle de Silencio a GND"]
+        MuteSense["Mute Pin (GPIO 32 PULLUP)\n-> Toggle de Silencio a GND"]
     end
 
     subgraph CORE_AGENTS ["Agentes del Núcleo de Firmware (ESP32)"]

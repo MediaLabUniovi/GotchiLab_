@@ -1,3 +1,13 @@
+/**
+ * @file main.cpp
+ * @brief GotchiLab_ - Firmware Principal de Mascota Virtual Educativa STEAM.
+ * @author José Escobedo Vázquez / MediaLab_
+ * @license MIT
+ *
+ * Arquitectura modular sobre ESP32 DevKit v1 con display OLED SSD1306,
+ * sensor NDIR Sensirion SCD30, fotorresistencia LDR calibrada y actuador piezoeléctrico.
+ */
+
 #include <Arduino.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
@@ -18,13 +28,13 @@ extern "C" {
     #include "animations/penguin_transition_unhealthy_anim.h"
 }
 
-// =====================================================
-// OLED
-// =====================================================
+/* ========================================================================== */
+/* HARDWARE INSTANCES & BITMAPS                                               */
+/* ========================================================================== */
 
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+static Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-// Icono Bitmap 1-bit de muslito de pollo (5x5 px)
+/// Icono bitmap 1-bit de muslo de comida para HUD (5x5 px)
 static const unsigned char PROGMEM chicken_leg_icon[] = {
     0b01110000,
     0b11111000,
@@ -33,234 +43,232 @@ static const unsigned char PROGMEM chicken_leg_icon[] = {
     0b00110000
 };
 
-// =====================================================
-// ESTADOS DE ANIMACION
-// =====================================================
+/* ========================================================================== */
+/* FSM & LIFE CYCLE ENUMS                                                     */
+/* ========================================================================== */
 
+/**
+ * @brief Estados principales de la Máquina de Estados Finita (FSM).
+ */
 enum AnimationState {
-    FEED = 0,
-    IDLE = 1,
-    PET = 2,
-    SLEEP = 3,
-    POP = 4,
-    IDLE_EGG = 5,
-    BIRTH = 6,
-    IDLE_UNHEALTHY = 7,
-    TRANSITION_TO_UNHEALTHY = 8,
-    TRANSITION_TO_HEALTHY = 9,
-    DEAD = 10
+    FEED = 0,                    ///< Comiendo alimento (bloqueante)
+    IDLE = 1,                    ///< Reposo en estado saludable
+    PET = 2,                     ///< Recibiendo caricia táctil (bloqueante)
+    SLEEP = 3,                   ///< Durmiendo en penumbra
+    POP = 4,                     ///< Animación de explosión/desvanecimiento post-mortem (bloqueante)
+    IDLE_EGG = 5,                ///< Huevo esperando eclosión
+    BIRTH = 6,                   ///< Eclosión y nacimiento (bloqueante)
+    IDLE_UNHEALTHY = 7,          ///< Reposo enfermo por atmósfera viciada (CO2 alto)
+    TRANSITION_TO_UNHEALTHY = 8, ///< Transición gráfica hacia estado enfermo
+    TRANSITION_TO_HEALTHY = 9,   ///< Transición de recuperación hacia estado sano
+    DEAD = 10                    ///< Pantalla final de defunción y Game Over
 };
 
-// Causas de muerte
+/**
+ * @brief Razones clínicas de fallecimiento de la criatura.
+ */
 enum DeathReason {
     DEATH_NONE = 0,
-    DEATH_STARVATION,    // Inanición (> 3 min sin comer)
-    DEATH_OVERFED,       // Sobrealimentación (Spam de comida / POP)
-    DEATH_CO2,           // Intoxicación / asfixia por CO2 prolongado
-    DEATH_EXHAUSTION     // Agotamiento extremo (sin dormir en oscuridad)
+    DEATH_STARVATION,            ///< Inanición por falta de alimento (> 3 minutos)
+    DEATH_OVERFED,               ///< Sobrealimentación crítica por spam de pulsaciones (POP)
+    DEATH_CO2,                   ///< Asfixia por exposición continua a CO2 (> 60 segundos)
+    DEATH_EXHAUSTION             ///< Agotamiento extremo por falta de descanso (> 2.5 minutos)
 };
 
-AnimationState currentAnimation = IDLE_EGG;
+static AnimationState currentAnimation = IDLE_EGG;
 static uint8_t currentFrame = 0;
-DeathReason deathReason = DEATH_NONE;
-uint32_t deathTime = 0;
 
-// =====================================================
-// SONIDOS
-// =====================================================
+static DeathReason pendingDeathReason = DEATH_NONE;
+static DeathReason deathReason = DEATH_NONE;
+static uint32_t deathTime = 0;
+
+/* ========================================================================== */
+/* AUDIO SYSTEM & TONE TABLES                                                 */
+/* ========================================================================== */
 
 struct Note {
     uint16_t freq;
     uint16_t duration;
 };
 
-const Note SOUND_FEED[] = {
+static const Note SOUND_FEED[] = {
     {523, 70}, {659, 70}, {784, 90}, {1047, 120}, {0, 30}
 };
 
-const Note SOUND_PET[] = {
+static const Note SOUND_PET[] = {
     {659, 60}, {784, 60}, {659, 80}, {0, 25}
 };
 
-const Note SOUND_IDLE[] = {
+static const Note SOUND_IDLE[] = {
     {523, 40}, {659, 50}, {0, 20}
 };
 
-// Melodía somnolienta descendente (suave, relajante, tipo nana/bostezo)
-const Note SOUND_SLEEPY[] = {
+static const Note SOUND_SLEEPY[] = {
     {784, 130}, {659, 150}, {587, 170}, {523, 200},
     {0, 60},
     {440, 200}, {392, 230}, {330, 280}, {262, 400}, {0, 80}
 };
 
-const Note SOUND_SLEEP[] = {
+static const Note SOUND_SLEEP[] = {
     {784, 130}, {659, 150}, {587, 170}, {523, 200},
     {0, 60},
     {440, 200}, {392, 230}, {330, 280}, {262, 400}, {0, 80}
 };
 
-// Sonido de hambre: Estómago rugiendo (frecuencias graves fluctuantes y vibrantes)
-const Note SOUND_HUNGER_GROWL[] = {
+static const Note SOUND_HUNGER_GROWL[] = {
     {98, 90}, {115, 80}, {82, 100}, {123, 70}, {75, 120},
     {0, 40},
     {87, 100}, {110, 80}, {92, 90}, {73, 140}, {0, 60}
 };
 
-// Sonido de tos / enfermo por CO2 alto ("cof, cof, cof" seco, entrecortado y áspero)
-const Note SOUND_COUGH[] = {
+static const Note SOUND_COUGH[] = {
     {370, 35}, {240, 45}, {140, 60}, {0, 70},
     {390, 35}, {260, 45}, {150, 70}, {0, 90},
     {310, 40}, {200, 50}, {120, 80}, {0, 60}
 };
 
-const Note SOUND_EGG[] = {
+static const Note SOUND_EGG[] = {
     {392, 70}, {440, 70}, {392, 80}, {0, 40}
 };
 
-const Note SOUND_BIRTH[] = {
+static const Note SOUND_BIRTH[] = {
     {523, 60}, {659, 60}, {784, 60}, {988, 80}, {1175, 110}, {0, 40}
 };
 
-const Note SOUND_POP[] = {
+static const Note SOUND_POP[] = {
     {220, 40}, {180, 35}, {140, 35}, {90, 70}, {0, 30}
 };
 
-const Note SOUND_UNHEALTHY[] = {
+static const Note SOUND_UNHEALTHY[] = {
     {370, 35}, {240, 45}, {140, 60}, {0, 70},
     {390, 35}, {260, 45}, {150, 70}, {0, 60}
 };
 
-const Note SOUND_TRANSITION_UNHEALTHY[] = {
+static const Note SOUND_TRANSITION_UNHEALTHY[] = {
     {587, 60}, {523, 70}, {440, 80}, {0, 30},
     {370, 40}, {240, 50}, {140, 70}, {0, 40}
 };
 
-const Note SOUND_TRANSITION_RECOVER[] = {
+static const Note SOUND_TRANSITION_RECOVER[] = {
     {440, 60}, {523, 70}, {659, 90}, {0, 30}
 };
 
-// Sonido trágico de derrota / muerte (Marcha fúnebre estilizada)
-const Note SOUND_DEATH[] = {
+static const Note SOUND_DEATH[] = {
     {440, 300}, {440, 300}, {440, 300}, {349, 250}, {523, 100},
     {440, 300}, {349, 250}, {523, 100}, {440, 600}, {0, 100}
 };
 
-// Sonido de alerta / advertencia crítica (bip-bip de peligro)
-const Note SOUND_WARNING[] = {
-    {880, 80}, {0, 40}, {880, 80}, {0, 40}
-};
+static const Note* currentSound = nullptr;
+static uint8_t currentSoundLength = 0;
+static uint8_t currentSoundIndex = 0;
+static bool soundPlaying = false;
+static uint32_t soundLastChange = 0;
 
-const Note* currentSound = nullptr;
-uint8_t currentSoundLength = 0;
-uint8_t currentSoundIndex = 0;
-bool soundPlaying = false;
-uint32_t soundLastChange = 0;
+/* ========================================================================== */
+/* STATE VARIABLES & TELEMETRY TIMERS                                         */
+/* ========================================================================== */
 
-// =====================================================
-// VARIABLES DE ESTADO Y ESTADÍSTICAS
-// =====================================================
+static uint32_t lastButtonTime = 0;
+static bool lastButtonPhysicalState = HIGH;
 
-uint32_t lastButtonTime = 0;
-bool lastButtonPhysicalState = HIGH;
+static uint32_t lastLightReadTime = 0;
+static bool isDark = false;
+static bool lastDarkState = false;
 
-uint32_t lastLightReadTime = 0;
-bool isDark = false;
-bool lastDarkState = false;
+static uint32_t lastTouchReadTime = 0;
+static bool lastTouchDetected = false;
+static bool touchSensorInitialized = false;
 
-uint32_t lastTouchReadTime = 0;
-bool lastTouchDetected = false;
-bool touchSensorInitialized = false;
+static uint32_t lastCO2LogicTime = 0;
+static uint16_t currentCO2ppm = 400;
+static uint16_t displaySmoothCO2 = 400;
+static bool co2High = false;
 
-uint32_t lastCO2LogicTime = 0;
-uint16_t currentCO2ppm = 400;
-uint16_t displaySmoothCO2 = 400;
-bool co2High = false;
+// Tiempos vitales
+static uint32_t hatchTime = 0;
+static uint32_t lastFeedTestTime = 0;
+static uint32_t highCO2AccumulatedMs = 0;
+static uint32_t lastCO2CheckTime = 0;
+static uint32_t continuousAwakeTime = 0;
+static uint32_t lastAwakeCheckTime = 0;
+static uint32_t lastHappinessDecayTime = 0;
 
-// Tiempos para cálculo de condiciones de muerte y puntuación
-uint32_t hatchTime = 0;
-uint32_t lastFeedTestTime = 0;
-uint32_t highCO2AccumulatedMs = 0;
-uint32_t lastCO2CheckTime = 0;
-uint32_t continuousAwakeTime = 0;
-uint32_t lastAwakeCheckTime = 0;
-uint32_t lastHappinessDecayTime = 0;
+// Estadísticas de partida
+static int8_t currentHappiness = MAX_HAPPINESS;
+static uint32_t totalPets = 0;
+static uint32_t totalFeeds = 0;
 
-// Estadísticas de juego
-int8_t currentHappiness = MAX_HAPPINESS; // 0 a 5
-uint32_t totalPets = 0;
-uint32_t totalFeeds = 0;
+static bool visualUnhealthy = false;
+static bool sleepHoldFrame = false;
+static bool feedRequested = false;
+static bool isHatched = false;
+static bool birthTriggered = false;
 
-// false -> idle normal
-// true  -> idle unhealthy
-bool visualUnhealthy = false;
+static uint8_t rapidFeedCount = 0;
+static uint32_t firstFeedPressTime = 0;
 
-bool sleepHoldFrame = false;
-bool feedRequested = false;
+static uint32_t eggStartTime = 0;
+static uint32_t lastFrameTime = 0;
 
-bool isHatched = false;
-bool birthTriggered = false;
+static bool isMuted = false;
+static uint32_t lastMuteToggleTime = 0;
+static bool lastMutePhysicalState = HIGH;
 
-uint8_t rapidFeedCount = 0;
-uint32_t firstFeedPressTime = 0;
+// Alertas sonoras periódicas
+static uint32_t lastHungerSoundTime = 0;
+static uint32_t lastSleepySoundTime = 0;
+static uint32_t lastCoughSoundTime = 0;
 
-uint32_t eggStartTime = 0;
-uint32_t lastFrameTime = 0;
-
-bool isMuted = false;
-uint32_t lastMuteToggleTime = 0;
-bool lastMutePhysicalState = HIGH;
-
-// Tiempos para alertas sonoras periódicas (hambre, sueño y tos)
-uint32_t lastHungerSoundTime = 0;
-uint32_t lastSleepySoundTime = 0;
-uint32_t lastCoughSoundTime = 0;
-
-// =====================================================
-// PROTOTIPOS
-// =====================================================
+/* ========================================================================== */
+/* FUNCTION PROTOTYPES                                                        */
+/* ========================================================================== */
 
 const char* getAnimationName(AnimationState anim);
 void playAnimationSound(AnimationState anim);
-bool hasLightFeature();
-bool hasCO2Feature();
-bool hasButtonFeature();
-bool hasTouchFeature();
+bool hasLightFeature(void);
+bool hasCO2Feature(void);
+bool hasButtonFeature(void);
+bool hasTouchFeature(void);
 bool isTransitionAnimation(AnimationState anim);
 bool isBusyAnimation(AnimationState anim);
-void drawStatsOverlay();
+
+void drawStatsOverlay(void);
 void drawFrameRaw(const uint8_t* frameData, int yOffset);
 void getCurrentAnimationFrame(const uint8_t** frameData, int* yOffset);
-void refreshCurrentFrame();
+void refreshCurrentFrame(void);
 void setAnimation(AnimationState newAnim);
-AnimationState getCurrentBaseState();
-bool tryStartHealthTransition();
-void goToBaseState();
-void triggerDeath(DeathReason reason);
-void drawDeathScreen();
-void resetToEggState();
-void checkConditionSounds();
-bool isTouchActive();
-void showBootMessage();
-void registerFeedSpam();
-void handleButton();
-void handleLightSensor();
-void handleTouchSensor();
-void handleAutoHatch();
-void handleCO2Sensor();
-void handleMutePin();
-void updateGameStats();
-void playSoundSequence(const Note* sequence, uint8_t length);
-void stopSound();
-void updateSound();
+AnimationState getCurrentBaseState(void);
+bool tryStartHealthTransition(void);
+void goToBaseState(void);
 
-// =====================================================
-// SONIDO
-// =====================================================
+void triggerDeath(DeathReason reason);
+void drawDeathScreen(void);
+void resetToEggState(void);
+
+void playSoundSequence(const Note* sequence, uint8_t length);
+void stopSound(void);
+void updateSound(void);
+
+void handleButton(void);
+void handleLightSensor(void);
+void handleTouchSensor(void);
+void handleAutoHatch(void);
+void handleCO2Sensor(void);
+void handleMutePin(void);
+
+void updateGameStats(void);
+void checkConditionSounds(void);
+bool isTouchActive(void);
+void showBootMessage(void);
+
+/* ========================================================================== */
+/* AUDIO DRIVER IMPLEMENTATION                                                */
+/* ========================================================================== */
 
 void playSoundSequence(const Note* sequence, uint8_t length)
 {
 #if USE_BUZZER
-    if (isMuted) return; // Pingüino silenciado
+    if (isMuted) return;
 
     currentSound = sequence;
     currentSoundLength = length;
@@ -273,7 +281,7 @@ void playSoundSequence(const Note* sequence, uint8_t length)
 #endif
 }
 
-void stopSound()
+void stopSound(void)
 {
 #if USE_BUZZER
     ledcWriteTone(BUZZER_CHANNEL, 0);
@@ -285,7 +293,7 @@ void stopSound()
 #endif
 }
 
-void updateSound()
+void updateSound(void)
 {
 #if USE_BUZZER
     if (isMuted) {
@@ -329,8 +337,6 @@ void updateSound()
     }
 #endif
 }
-
-// =====================================================
 
 const char* getAnimationName(AnimationState anim)
 {
@@ -389,14 +395,14 @@ void playAnimationSound(AnimationState anim)
     }
 }
 
-// =====================================================
-// HELPERS DE LOGICA Y FEATURES
-// =====================================================
+/* ========================================================================== */
+/* LOGIC HELPERS & FEATURE AVAILABILITY                                       */
+/* ========================================================================== */
 
-bool hasLightFeature()  { return USE_LIGHT_SENSOR; }
-bool hasCO2Feature()    { return USE_CO2_SENSOR; }
-bool hasButtonFeature() { return USE_BUTTON_SENSOR; }
-bool hasTouchFeature()  { return USE_TOUCH_SENSOR; }
+bool hasLightFeature(void)  { return USE_LIGHT_SENSOR; }
+bool hasCO2Feature(void)    { return (USE_CO2_SENSOR && isCO2SensorEnabled() && isCO2Connected()); }
+bool hasButtonFeature(void) { return USE_BUTTON_SENSOR; }
+bool hasTouchFeature(void)  { return USE_TOUCH_SENSOR; }
 
 bool isTransitionAnimation(AnimationState anim)
 {
@@ -416,28 +422,29 @@ bool isBusyAnimation(AnimationState anim)
             anim == DEAD);
 }
 
-// =====================================================
-// RENDERIZADO DEL OVERLAY DE ESTADÍSTICAS (HUD)
-// =====================================================
+/* ========================================================================== */
+/* GRAPHICS ENGINE & OVERLAY                                                  */
+/* ========================================================================== */
 
-void drawStatsOverlay()
+void drawStatsOverlay(void)
 {
 #if !SHOW_STATS_OVERLAY
-    return; // Barra de estado oculta para modo inmersivo a ciegas: las animaciones ocupan toda la pantalla
+    return;
 #endif
 
-    if (!isHatched || currentAnimation == IDLE_EGG || currentAnimation == BIRTH || currentAnimation == DEAD) {
+    if (!isHatched || currentAnimation == IDLE_EGG || currentAnimation == BIRTH || 
+        currentAnimation == POP || currentAnimation == DEAD) {
         return;
     }
 
-    // 1. HAMBRE (Muslitos de pollo) - Si el botón está activado
+    // 1. Hambre (Muslitos)
     if (hasButtonFeature()) {
         uint32_t elapsed = millis() - lastFeedTestTime;
         int hungerLevel = 3;
         if (elapsed > (STARVATION_TIME_MS * 2 / 3)) {
-            hungerLevel = 1; // Crítico
+            hungerLevel = 1;
         } else if (elapsed > (STARVATION_TIME_MS / 3)) {
-            hungerLevel = 2; // Hambriento
+            hungerLevel = 2;
         }
 
         for (int i = 0; i < 3; i++) {
@@ -446,13 +453,12 @@ void drawStatsOverlay()
             if (i < hungerLevel) {
                 display.drawBitmap(x, y, chicken_leg_icon, 5, 5, SSD1306_WHITE);
             } else {
-                // Dibujar contorno vacío
                 display.drawRect(x, y, 5, 5, SSD1306_WHITE);
             }
         }
     }
 
-    // 2. FELICIDAD (Corazones / Caricias) - Si el touch está activado
+    // 2. Felicidad (Corazones)
     if (hasTouchFeature()) {
         int xStart = 28;
         int y = 2;
@@ -460,14 +466,12 @@ void drawStatsOverlay()
         for (int i = 0; i < 3; i++) {
             int x = xStart + i * 7;
             if (i < filled) {
-                // Mini corazón lleno (5x5)
                 display.drawPixel(x+1, y, SSD1306_WHITE);
                 display.drawPixel(x+3, y, SSD1306_WHITE);
                 display.drawFastHLine(x, y+1, 5, SSD1306_WHITE);
                 display.drawFastHLine(x+1, y+2, 3, SSD1306_WHITE);
                 display.drawPixel(x+2, y+3, SSD1306_WHITE);
             } else {
-                // Mini corazón vacío / contorno
                 display.drawPixel(x+1, y, SSD1306_WHITE);
                 display.drawPixel(x+3, y, SSD1306_WHITE);
                 display.drawPixel(x, y+1, SSD1306_WHITE);
@@ -477,9 +481,7 @@ void drawStatsOverlay()
         }
     }
 
-    // 3. BARRA DE SALUD RESPIRATORIA / AIRE LIMPIO (CO2) - Si el sensor está activado
-    // Empieza a tope (100% llena) con aire limpio (400 ppm) y desciende si sube el CO2.
-    // Al volver a la normalidad, sube rápidamente recuperando la salud.
+    // 3. Salud Respiratoria / Aire Limpio (CO2)
     if (hasCO2Feature()) {
         int barX = 54;
         int barY = 2;
@@ -488,11 +490,9 @@ void drawStatsOverlay()
 
         display.drawRect(barX, barY, barW, barH, SSD1306_WHITE);
 
-        // Suavizado dinámico: cuando el CO2 baja (aire se limpia), la salud sube más rápido
         if (displaySmoothCO2 < currentCO2ppm) {
             displaySmoothCO2 += (currentCO2ppm - displaySmoothCO2 + 3) / 4;
         } else if (displaySmoothCO2 > currentCO2ppm) {
-            // Recuperación rápida de salud al normalizarse el aire
             uint16_t diff = displaySmoothCO2 - currentCO2ppm;
             uint16_t step = (diff / 2) + 20;
             if (displaySmoothCO2 > currentCO2ppm + step) {
@@ -502,9 +502,6 @@ void drawStatsOverlay()
             }
         }
 
-        // Mapear salud respiratoria:
-        // 400 ppm (o menos) -> Salud máxima (barra completamente llena)
-        // 2000 ppm (o más) -> Salud crítica (barra vacía)
         int ppm = displaySmoothCO2;
         if (ppm < 400) ppm = 400;
         if (ppm > 2000) ppm = 2000;
@@ -514,14 +511,11 @@ void drawStatsOverlay()
         }
     }
 
-    // 4. SUEÑO / ENERGÍA - Si el sensor de luz está activado
+    // 4. Energía / Sueño (LDR)
     if (hasLightFeature()) {
         int zX = 94;
         int zY = 2;
-        display.setTextSize(1);
-        display.setTextColor(SSD1306_WHITE);
 
-        // Barra de energía (progreso de descanso): sube progresivamente al dormir
         uint32_t awakeTime = continuousAwakeTime;
         if (awakeTime > MAX_TIME_AWAKE_MS) awakeTime = MAX_TIME_AWAKE_MS;
         int energyRemaining = MAX_TIME_AWAKE_MS - awakeTime;
@@ -533,17 +527,16 @@ void drawStatsOverlay()
             display.fillRect(zX + 1, zY + 1, fill, 3, SSD1306_WHITE);
         }
 
-        // Si está durmiendo, mostrar "Z" flotante o indicador
         if (currentAnimation == SLEEP) {
+            display.setTextSize(1);
+            display.setTextColor(SSD1306_WHITE);
             display.setCursor(zX + 10, zY - 1);
-            // Parpadeo sutil de Zzz
             if ((millis() / 500) % 2 == 0) {
-                display.print("z");
+                display.print(F("z"));
             }
         }
     }
 
-    // Línea divisoria discreta superior
     display.drawFastHLine(0, 8, SCREEN_WIDTH, SSD1306_WHITE);
 }
 
@@ -555,7 +548,6 @@ void drawFrameRaw(const uint8_t* frameData, int yOffset)
     for (int x = 0; x < SCREEN_WIDTH; x++) {
         for (int y = 0; y < SCREEN_HEIGHT; y++) {
             int srcY = y - yOffset;
-
             if (srcY < 0 || srcY >= SCREEN_HEIGHT) continue;
 
             int srcIndex = x + (srcY / 8) * SCREEN_WIDTH;
@@ -567,9 +559,7 @@ void drawFrameRaw(const uint8_t* frameData, int yOffset)
         }
     }
 
-    // Dibujar estadísticas HUD encima de los frames
     drawStatsOverlay();
-
     display.display();
 }
 
@@ -582,53 +572,43 @@ void getCurrentAnimationFrame(const uint8_t** frameData, int* yOffset)
             *frameData = penguin_feed_anim[frameIndex];
             *yOffset = penguin_feed_offsets[frameIndex];
             break;
-
         case IDLE:
             *frameData = penguin_idle_anim[frameIndex];
             *yOffset = penguin_idle_offsets[frameIndex];
             break;
-
         case PET:
             *frameData = penguin_pet_anim[frameIndex];
             *yOffset = penguin_pet_offsets[frameIndex];
             break;
-
         case SLEEP:
             *frameData = penguin_sleep_anim[frameIndex];
             *yOffset = penguin_sleep_offsets[frameIndex];
             break;
-
         case POP:
             *frameData = penguin_pop_anim[frameIndex];
             *yOffset = penguin_pop_offsets[frameIndex];
             break;
-
         case IDLE_EGG:
             *frameData = penguin_idle_egg_anim[frameIndex];
             *yOffset = penguin_idle_egg_offsets[frameIndex];
             break;
-
         case BIRTH:
             *frameData = penguin_birth_anim[frameIndex];
             *yOffset = penguin_birth_offsets[frameIndex];
             break;
-
         case IDLE_UNHEALTHY:
             *frameData = penguin_idle_unhealthy_anim[frameIndex];
             *yOffset = penguin_idle_unhealthy_offsets[frameIndex];
             break;
-
         case TRANSITION_TO_UNHEALTHY:
             *frameData = penguin_transition_unhealthy_anim[frameIndex];
             *yOffset = penguin_transition_unhealthy_offsets[frameIndex];
             break;
-
         case TRANSITION_TO_HEALTHY:
             frameIndex = (FRAME_COUNT - 1) - currentFrame;
             *frameData = penguin_transition_unhealthy_anim[frameIndex];
             *yOffset = penguin_transition_unhealthy_offsets[frameIndex];
             break;
-
         default:
             *frameData = penguin_idle_anim[frameIndex];
             *yOffset = penguin_idle_offsets[frameIndex];
@@ -636,32 +616,30 @@ void getCurrentAnimationFrame(const uint8_t** frameData, int* yOffset)
     }
 }
 
-void refreshCurrentFrame()
+void refreshCurrentFrame(void)
 {
     if (currentAnimation == DEAD) {
         drawDeathScreen();
         return;
     }
 
-    const uint8_t* frameData;
-    int yOffset;
+    const uint8_t* frameData = nullptr;
+    int yOffset = 0;
     getCurrentAnimationFrame(&frameData, &yOffset);
-    drawFrameRaw(frameData, yOffset);
+    if (frameData != nullptr) {
+        drawFrameRaw(frameData, yOffset);
+    }
 }
 
 void setAnimation(AnimationState newAnim)
 {
-    if (currentAnimation == DEAD) {
-        return; // No se cambia de animación si está muerto
-    }
+    if (currentAnimation == DEAD) return;
 
-    if (currentAnimation == newAnim && currentFrame == 0) {
-        return;
-    }
+    if (currentAnimation == newAnim && currentFrame == 0) return;
 
-    Serial.print("[ANIM] Transición: ");
+    Serial.print(F("[ANIM] Transicion: "));
     Serial.print(getAnimationName(currentAnimation));
-    Serial.print(" -> ");
+    Serial.print(F(" -> "));
     Serial.println(getAnimationName(newAnim));
 
     currentAnimation = newAnim;
@@ -672,18 +650,17 @@ void setAnimation(AnimationState newAnim)
     refreshCurrentFrame();
 }
 
-AnimationState getCurrentBaseState()
+AnimationState getCurrentBaseState(void)
 {
     if (hasLightFeature() && isDark) {
         return SLEEP;
     }
-
     return visualUnhealthy ? IDLE_UNHEALTHY : IDLE;
 }
 
-bool tryStartHealthTransition()
+bool tryStartHealthTransition(void)
 {
-    if (!isHatched || currentAnimation == DEAD) return false;
+    if (!isHatched || currentAnimation == DEAD || currentAnimation == POP) return false;
     if (hasLightFeature() && isDark) return false;
     if (!hasCO2Feature()) return false;
 
@@ -700,108 +677,119 @@ bool tryStartHealthTransition()
     return false;
 }
 
-void goToBaseState()
+void goToBaseState(void)
 {
-    if (tryStartHealthTransition()) {
-        return;
-    }
-
+    if (tryStartHealthTransition()) return;
     setAnimation(getCurrentBaseState());
 }
 
-// =====================================================
-// PANTALLA DE MUERTE Y GAME OVER CON PUNTUACIÓN
-// =====================================================
+/* ========================================================================== */
+/* LIFE CYCLE: DEATH SEQUENCE & CLEAN RESET                                   */
+/* ========================================================================== */
 
+/**
+ * @brief Inicia la secuencia de muerte de la criatura.
+ *
+ * Ejecuta obligatoriamente la animación gráfica de 'POP' (15 frames de explosión)
+ * en el display OLED antes de presentar la pantalla de defunción.
+ *
+ * @param reason Causa que motivó el fallecimiento.
+ */
 void triggerDeath(DeathReason reason)
 {
-    if (currentAnimation == DEAD) return;
-
-    deathReason = reason;
-    currentAnimation = DEAD;
-    deathTime = millis();
-
-    Serial.print("[GAME OVER] La mascota ha muerto por: ");
-    switch (reason) {
-        case DEATH_STARVATION: Serial.println("INANICIÓN (Sin comer 3m)"); break;
-        case DEATH_OVERFED:    Serial.println("SOBREALIMENTACIÓN (POP)"); break;
-        case DEATH_CO2:        Serial.println("ASFIXIA POR EXCESO DE CO2"); break;
-        case DEATH_EXHAUSTION: Serial.println("AGOTAMIENTO (Sin dormir)"); break;
-        default:               Serial.println("DESCONOCIDO"); break;
+    if (currentAnimation == POP || currentAnimation == DEAD) {
+        return; // Ya está en proceso de fallecimiento
     }
 
-    playAnimationSound(DEAD);
-    drawDeathScreen();
+    pendingDeathReason = reason;
+
+    Serial.print(F("[DEATH] Secuencia de muerte iniciada. Causa: "));
+    switch (reason) {
+        case DEATH_STARVATION: Serial.println(F("INANICION (3 min sin comer)")); break;
+        case DEATH_OVERFED:    Serial.println(F("SOBREALIMENTACION (POP por spam)")); break;
+        case DEATH_CO2:        Serial.println(F("ASFIXIA (Exceso continuo de CO2)")); break;
+        case DEATH_EXHAUSTION: Serial.println(F("AGOTAMIENTO (Falta de descanso)")); break;
+        default:               Serial.println(F("DESCONOCIDA")); break;
+    }
+
+    stopSound();
+
+    // Transición directa al estado POP para ejecutar la animación completa
+    currentAnimation = POP;
+    currentFrame = 0;
+    sleepHoldFrame = false;
+
+    playAnimationSound(POP);
+    refreshCurrentFrame();
 }
 
-void drawDeathScreen()
+void drawDeathScreen(void)
 {
     display.clearDisplay();
     display.setTextColor(SSD1306_WHITE);
 
-    // Encabezado
+    // Encabezado centrado en la franja amarilla (128x16 px, y=0..15)
+    // Texto de 17 caracteres (102 px de ancho, 8 px de alto)
+    // Centrado horizontal: (128 - 102) / 2 = x 13
+    // Centrado vertical:   (16 - 8) / 2 = y 4
     display.setTextSize(1);
-    display.setCursor(22, 2);
-    display.println("=== GAME OVER ===");
+    display.setCursor(13, 4);
+    display.println(F("=== GAME OVER ==="));
 
-    // Causa de la muerte
-    display.setCursor(0, 14);
-    display.print("Causa: ");
+    // Franja azul inferior: comienza en y=16 (hasta y=63)
+    // Iniciamos en y=18 para no tocar el borde ni el gap intercolor
+
+    // 1. Causa de la muerte (y = 18..25)
+    display.setCursor(0, 18);
+    display.print(F("Causa: "));
     switch (deathReason) {
-        case DEATH_STARVATION:
-            display.println("INANICION 3m");
-            break;
-        case DEATH_OVERFED:
-            display.println("EXPLOTO (POP)!");
-            break;
-        case DEATH_CO2:
-            display.println("ASFIXIA (CO2)");
-            break;
-        case DEATH_EXHAUSTION:
-            display.println("AGOTAMIENTO");
-            break;
-        default:
-            display.println("Desconocida");
-            break;
+        case DEATH_STARVATION: display.println(F("INANICION 3m")); break;
+        case DEATH_OVERFED:    display.println(F("EXPLOTO (POP)!")); break;
+        case DEATH_CO2:        display.println(F("ASFIXIA (CO2)")); break;
+        case DEATH_EXHAUSTION: display.println(F("AGOTAMIENTO")); break;
+        default:               display.println(F("DESCONOCIDA")); break;
     }
 
-    // Tiempo vivido
-    uint32_t aliveSeconds = (deathTime >= hatchTime && hatchTime > 0) ? ((deathTime - hatchTime) / 1000) : 0;
-    display.setCursor(0, 26);
-    display.print("Tiempo vivo: ");
+    // 2. Tiempo vivido (y = 29..36)
+    uint32_t aliveSeconds = (deathTime >= hatchTime && hatchTime > 0) ? ((deathTime - hatchTime) / 1000UL) : 0;
+    display.setCursor(0, 29);
+    display.print(F("Tiempo vivo: "));
     display.print(aliveSeconds);
-    display.println("s");
+    display.println(F("s"));
 
-    // Cálculo de Score Final Profesional
-    // Puntos por segundo vivo + bonus por cuidados (feeds y caricias) + penalización por sufrimiento
-    int32_t finalScore = (aliveSeconds * 10) + (totalFeeds * 15) + (totalPets * 20);
+    // 3. Caricias y Comidas (y = 40..47)
+    int32_t finalScore = static_cast<int32_t>((aliveSeconds * 10UL) + (totalFeeds * 15UL) + (totalPets * 20UL));
     if (deathReason == DEATH_OVERFED || deathReason == DEATH_STARVATION) {
         finalScore = (finalScore > 50) ? (finalScore - 50) : 0;
     }
     if (finalScore < 0) finalScore = 0;
 
-    display.setCursor(0, 38);
-    display.print("Caricias: ");
+    display.setCursor(0, 40);
+    display.print(F("Caricias: "));
     display.print(totalPets);
-    display.print(" | Com: ");
+    display.print(F(" | Com: "));
     display.println(totalFeeds);
 
-    display.setTextSize(1);
-    display.setCursor(0, 50);
-    display.print("PUNTUACION: ");
+    // 4. Puntuación (y = 52..59)
+    display.setCursor(0, 52);
+    display.print(F("PUNTOS: "));
     display.print(finalScore);
-    display.println(" pts");
+    display.println(F(" pts"));
 
     display.display();
 }
 
-void resetToEggState()
+/**
+ * @brief Restablece de forma absoluta e incondicional todos los estados del juego.
+ *
+ * Sin persistencia en EEPROM/Preferences/NVS: ciclo único y limpio desde cero.
+ */
+void resetToEggState(void)
 {
-    Serial.println("[STATE] Reset -> EGG (Todos los valores reiniciados)");
+    Serial.println(F("[STATE] Reset -> EGG (Todos los contadores limpios desde cero)"));
 
     uint32_t now = millis();
 
-    // Detener cualquier sonido o nota activa de inmediato
     stopSound();
 
     isHatched = false;
@@ -818,7 +806,7 @@ void resetToEggState()
     displaySmoothCO2 = 400;
     visualUnhealthy = false;
 
-    // Reset estadísticas y causas de muerte
+    pendingDeathReason = DEATH_NONE;
     deathReason = DEATH_NONE;
     deathTime = 0;
     hatchTime = 0;
@@ -828,7 +816,6 @@ void resetToEggState()
     totalPets = 0;
     totalFeeds = 0;
 
-    // Sincronizar todos los timestamps a 'now' para evitar deltas fantasma al reiniciar
     eggStartTime = now;
     lastFeedTestTime = now;
     lastCO2CheckTime = now;
@@ -852,42 +839,37 @@ void resetToEggState()
     refreshCurrentFrame();
 }
 
-// =====================================================
-// TOUCH
-// =====================================================
+/* ========================================================================== */
+/* PERIPHERAL INPUT HANDLERS                                                  */
+/* ========================================================================== */
 
-bool isTouchActive()
+bool isTouchActive(void)
 {
 #if USE_TOUCH_SENSOR
-    return digitalRead(TOUCH_PIN) == HIGH;
+    return digitalRead(PIN_TOUCH) == HIGH;
 #else
     return false;
 #endif
 }
 
-// =====================================================
-
-void showBootMessage()
+void showBootMessage(void)
 {
     display.clearDisplay();
     display.setTextSize(2);
     display.setTextColor(SSD1306_WHITE);
     display.setCursor(15, 18);
-    display.println("GotchiLab_");
+    display.println(F("GotchiLab_"));
+
     display.setTextSize(1);
     display.setCursor(35, 48);
-    display.println("Iniciando...");
+    display.println(F("Iniciando..."));
     display.display();
 }
 
-// =====================================================
-// BOTON = COMER / POP
-// =====================================================
-
-void registerFeedSpam()
+static void registerFeedSpam(void)
 {
-    // Salvaguarda absoluta: NUNCA contar spam ni morir por sobrealimentación antes de nacer
-    if (!isHatched || currentAnimation == IDLE_EGG || currentAnimation == BIRTH || currentAnimation == DEAD) {
+    if (!isHatched || currentAnimation == IDLE_EGG || currentAnimation == BIRTH || 
+        currentAnimation == POP || currentAnimation == DEAD) {
         rapidFeedCount = 0;
         firstFeedPressTime = 0;
         feedRequested = false;
@@ -896,7 +878,7 @@ void registerFeedSpam()
 
     uint32_t now = millis();
 
-    // Período de gracia inicial al nacer: inmune a explosión por pulsaciones impacientes
+    // Período de gracia tras nacer
     if (now - hatchTime < NEWBORN_GRACE_PERIOD_MS) {
         rapidFeedCount = 0;
         firstFeedPressTime = 0;
@@ -906,16 +888,16 @@ void registerFeedSpam()
     if (firstFeedPressTime == 0 || (now - firstFeedPressTime > FEED_SPAM_WINDOW_MS)) {
         firstFeedPressTime = now;
         rapidFeedCount = 1;
-        Serial.print("[FEED] Nueva ventana de conteo: ");
+        Serial.print(F("[FEED] Ventana spam: "));
         Serial.println(rapidFeedCount);
     } else {
         rapidFeedCount++;
-        Serial.print("[FEED] Conteo actual: ");
+        Serial.print(F("[FEED] Conteo spam: "));
         Serial.println(rapidFeedCount);
     }
 
     if (rapidFeedCount >= FEED_SPAM_TRIGGER) {
-        Serial.println("[BUTTON] ¡¡¡ POP POR SOBREALIMENTACION !!!");
+        Serial.println(F("[BUTTON] ¡¡¡ SOBREALIMENTACION DETECTADA -> POP !!!"));
         rapidFeedCount = 0;
         firstFeedPressTime = 0;
         feedRequested = false;
@@ -923,10 +905,10 @@ void registerFeedSpam()
     }
 }
 
-void handleButton()
+void handleButton(void)
 {
 #if USE_BUTTON_SENSOR
-    if (currentAnimation == DEAD) return;
+    if (currentAnimation == POP || currentAnimation == DEAD) return;
 
     bool pressed = isButtonPressed();
     bool state = pressed ? LOW : HIGH;
@@ -937,7 +919,6 @@ void handleButton()
         if (now - lastButtonTime > DEBOUNCE_MS) {
             lastButtonTime = now;
 
-            // Antes de nacer o durante transiciones/muerte, NUNCA registrar comida ni acumular spam
             if (!isHatched ||
                 currentAnimation == IDLE_EGG ||
                 currentAnimation == BIRTH ||
@@ -947,23 +928,21 @@ void handleButton()
                 rapidFeedCount = 0;
                 firstFeedPressTime = 0;
                 feedRequested = false;
-                Serial.println("[BUTTON] ignorado (No nacido / Animación ocupada)");
                 lastButtonPhysicalState = state;
                 return;
             }
 
             registerFeedSpam();
 
-            if (currentAnimation == DEAD) {
+            if (currentAnimation == POP || currentAnimation == DEAD) {
                 lastButtonPhysicalState = state;
                 return;
             }
 
             if (currentAnimation == IDLE || currentAnimation == IDLE_UNHEALTHY) {
-                Serial.println("[BUTTON] FEED");
                 feedRequested = true;
                 lastFeedTestTime = now;
-                lastHungerSoundTime = now; // Silenciar alerta de hambre al comer
+                lastHungerSoundTime = now;
                 totalFeeds++;
                 setAnimation(FEED);
             }
@@ -974,22 +953,33 @@ void handleButton()
 #endif
 }
 
-// =====================================================
-// LUZ = DORMIR / AGOTAMIENTO
-// =====================================================
-
-void handleLightSensor()
+void handleLightSensor(void)
 {
 #if USE_LIGHT_SENSOR
-    if (currentAnimation == DEAD) return;
+    if (currentAnimation == POP || currentAnimation == DEAD) return;
 
     uint32_t now = millis();
-
     if (now - lastLightReadTime < LIGHT_READ_INTERVAL_MS) return;
     lastLightReadTime = now;
 
-    int lightValue = analogRead(LIGHT_SENSOR_PIN);
-    isDark = lightValue < LIGHT_THRESHOLD;
+    uint16_t lightRaw = analogRead(PIN_LDR);
+    float voltage = (static_cast<float>(lightRaw) * 3.3f) / 4095.0f;
+    isDark = (lightRaw < LDR_DARK_THRESHOLD);
+
+#if DEBUG_LDR_CALIBRATION
+    static uint32_t lastLdrDebugTime = 0;
+    if (now - lastLdrDebugTime >= LDR_DEBUG_INTERVAL_MS) {
+        lastLdrDebugTime = now;
+        Serial.print(F("[LDR DEBUG] ADC Raw: "));
+        Serial.print(lightRaw);
+        Serial.print(F("/4095 | Voltaje: "));
+        Serial.print(voltage, 3);
+        Serial.print(F(" V | Umbral: "));
+        Serial.print(LDR_DARK_THRESHOLD);
+        Serial.print(F(" | Estado: "));
+        Serial.println(isDark ? F("OSCURO (DORMIR)") : F("ILUMINADO (DESPIERTO)"));
+    }
+#endif
 
     if (!isHatched) {
         lastDarkState = isDark;
@@ -997,22 +987,17 @@ void handleLightSensor()
     }
 
     if (isDark != lastDarkState) {
-        Serial.print("[LIGHT] Cambio: ");
-        Serial.println(isDark ? "OSCURO -> Sueño" : "LUZ -> Despertar");
-        
+        Serial.print(F("[LIGHT] Cambio: "));
+        Serial.println(isDark ? F("OSCURO -> Sueno") : F("LUZ -> Despertar"));
+
         if (isDark) {
             feedRequested = false;
-
             if (currentAnimation == IDLE || currentAnimation == IDLE_UNHEALTHY) {
-                Serial.println("[LIGHT] Transición a SLEEP");
                 setAnimation(SLEEP);
             }
         } else {
             sleepHoldFrame = false;
-
             if (currentAnimation == SLEEP) {
-                Serial.println("[LIGHT] Saliendo de SLEEP");
-                // La energía restante se conserva exactamente según lo que descansó
                 goToBaseState();
             }
         }
@@ -1022,17 +1007,12 @@ void handleLightSensor()
 #endif
 }
 
-// =====================================================
-// TOUCH = NACER / CARICIA
-// =====================================================
-
-void handleTouchSensor()
+void handleTouchSensor(void)
 {
 #if USE_TOUCH_SENSOR
-    if (currentAnimation == DEAD) return;
+    if (currentAnimation == POP || currentAnimation == DEAD) return;
 
     uint32_t now = millis();
-
     if (now - lastTouchReadTime < 50) return;
     lastTouchReadTime = now;
 
@@ -1051,7 +1031,7 @@ void handleTouchSensor()
             touchDetected &&
             !lastTouchDetected &&
             !birthTriggered) {
-            Serial.println("[TOUCH] Toque detectado -> BIRTH");
+            Serial.println(F("[TOUCH] Caricia en cascaron -> ECLOSION (BIRTH)"));
             birthTriggered = true;
             setAnimation(BIRTH);
         }
@@ -1076,7 +1056,6 @@ void handleTouchSensor()
 
     if ((currentAnimation == IDLE || currentAnimation == IDLE_UNHEALTHY) &&
         touchDetected && !lastTouchDetected) {
-        Serial.println("[TOUCH] Toque -> PET");
         totalPets++;
         if (currentHappiness < MAX_HAPPINESS) currentHappiness++;
         setAnimation(PET);
@@ -1086,15 +1065,15 @@ void handleTouchSensor()
 #endif
 }
 
-void handleAutoHatch()
+void handleAutoHatch(void)
 {
 #if (!USE_TOUCH_SENSOR) && AUTO_HATCH_IF_NO_TOUCH
     if (!isHatched && !birthTriggered && currentAnimation == IDLE_EGG) {
         uint32_t elapsed = millis() - eggStartTime;
         if (elapsed >= AUTO_HATCH_DELAY_MS) {
-            Serial.print("[AUTO] Eclosión automática después de ");
+            Serial.print(F("[AUTO] Eclosion automatica tras "));
             Serial.print(elapsed);
-            Serial.println(" ms");
+            Serial.println(F(" ms"));
             birthTriggered = true;
             setAnimation(BIRTH);
         }
@@ -1102,21 +1081,16 @@ void handleAutoHatch()
 #endif
 }
 
-// =====================================================
-// CO2
-// =====================================================
-
-void handleCO2Sensor()
+void handleCO2Sensor(void)
 {
 #if USE_CO2_SENSOR
-    if (currentAnimation == DEAD) return;
+    if (currentAnimation == POP || currentAnimation == DEAD) return;
 
     uint32_t now = millis();
-
     if (now - lastCO2LogicTime < CO2_READ_INTERVAL_MS) return;
     lastCO2LogicTime = now;
 
-    if (!isCO2Connected()) {
+    if (!hasCO2Feature()) {
         co2High = false;
         currentCO2ppm = 400;
         return;
@@ -1128,12 +1102,14 @@ void handleCO2Sensor()
     bool newCo2High = co2High;
 
     if (!co2High && currentCO2ppm >= CO2_HIGH_ON_PPM) {
-        Serial.print("[CO2] ¡¡¡ ALERTA: CO2 ALTO !!! ");
-        Serial.println(currentCO2ppm);
+        Serial.print(F("[CO2] ALERTA: Atmosfera contaminada: "));
+        Serial.print(currentCO2ppm);
+        Serial.println(F(" ppm"));
         newCo2High = true;
     } else if (co2High && currentCO2ppm <= CO2_HIGH_OFF_PPM) {
-        Serial.print("[CO2] CO2 normalizado: ");
-        Serial.println(currentCO2ppm);
+        Serial.print(F("[CO2] Atmosfera limpia restablecida: "));
+        Serial.print(currentCO2ppm);
+        Serial.println(F(" ppm"));
         newCo2High = false;
     }
 
@@ -1148,18 +1124,13 @@ void handleCO2Sensor()
 #endif
 }
 
-// =====================================================
-// MUTE / SILENCIO DE BUZZER
-// Puentear MUTE_PIN a GND alterna entre MUTE y SONIDO
-// =====================================================
-
-void handleMutePin()
+void handleMutePin(void)
 {
 #if USE_BUZZER
-    bool pinState = digitalRead(MUTE_PIN);
+    bool pinState = digitalRead(PIN_MUTE);
     uint32_t now = millis();
 
-    // Detección de flanco de bajada (conexión a tierra GND)
+    // Detección de flanco de bajada (puente a masa / GND)
     if (lastMutePhysicalState == HIGH && pinState == LOW) {
         if (now - lastMuteToggleTime > MUTE_DEBOUNCE_MS) {
             lastMuteToggleTime = now;
@@ -1167,10 +1138,9 @@ void handleMutePin()
 
             if (isMuted) {
                 stopSound();
-                Serial.println("[AUDIO] ¡Pingüino SILENCIADO! (Mute ON)");
+                Serial.println(F("[AUDIO] Silenciado (Mute ON)"));
             } else {
-                Serial.println("[AUDIO] Sonido ACTIVADO (Mute OFF)");
-                // Breve pitido confirmatorio al desmutear
+                Serial.println(F("[AUDIO] Sonido Habilitado (Mute OFF)"));
                 ledcWriteTone(BUZZER_CHANNEL, 880);
                 ledcWrite(BUZZER_CHANNEL, BUZZER_VOLUME);
                 delay(40);
@@ -1184,19 +1154,20 @@ void handleMutePin()
 #endif
 }
 
-// =====================================================
-// GESTIÓN DE CONDICIONES CRÍTICAS Y VIGILANCIA DE ESTADO
-// =====================================================
+/* ========================================================================== */
+/* VITAL SIGNS & PERIODIC CONDITION CHECKS                                    */
+/* ========================================================================== */
 
-void updateGameStats()
+void updateGameStats(void)
 {
-    if (!isHatched || currentAnimation == DEAD || currentAnimation == BIRTH || currentAnimation == IDLE_EGG) {
+    if (!isHatched || currentAnimation == POP || currentAnimation == DEAD || 
+        currentAnimation == BIRTH || currentAnimation == IDLE_EGG) {
         return;
     }
 
     uint32_t now = millis();
 
-    // 1. INANICIÓN (Hambre > 3 minutos) - Solo si el botón está activado
+    // 1. Inanición
     if (hasButtonFeature()) {
         if (now - lastFeedTestTime >= STARVATION_TIME_MS) {
             triggerDeath(DEATH_STARVATION);
@@ -1204,7 +1175,7 @@ void updateGameStats()
         }
     }
 
-    // 2. INTOXICACIÓN POR CO2 ACUMULADO - Solo si el sensor de CO2 está activado
+    // 2. Intoxicación por CO2 (solo si el sensor está activo y no anulado)
     if (hasCO2Feature()) {
         uint32_t dt = (lastCO2CheckTime > 0) ? (now - lastCO2CheckTime) : 0;
         lastCO2CheckTime = now;
@@ -1216,7 +1187,6 @@ void updateGameStats()
                 return;
             }
         } else {
-            // Se recupera más rápido al volver el aire limpio (multiplicador configurable)
             uint32_t rec = dt * CO2_CLEAN_RECOVERY_MULTIPLIER;
             if (highCO2AccumulatedMs > rec) {
                 highCO2AccumulatedMs -= rec;
@@ -1226,7 +1196,7 @@ void updateGameStats()
         }
     }
 
-    // 3. AGOTAMIENTO EXTREMO & SUEÑO PROGRESIVO - Solo si el sensor de luz está activo
+    // 3. Agotamiento extremo
     if (hasLightFeature()) {
         uint32_t dt = (lastAwakeCheckTime > 0) ? (now - lastAwakeCheckTime) : 0;
         lastAwakeCheckTime = now;
@@ -1238,7 +1208,6 @@ void updateGameStats()
                 return;
             }
         } else {
-            // Dormir recupera el cansancio PROGRESIVAMENTE (llenando la barra poco a poco)
             uint32_t sleepGain = dt * SLEEP_RECOVERY_MULTIPLIER;
             if (continuousAwakeTime > sleepGain) {
                 continuousAwakeTime -= sleepGain;
@@ -1248,63 +1217,53 @@ void updateGameStats()
         }
     }
 
-    // 4. DECAIMIENTO DE FELICIDAD POR FALTA DE CARICIAS - Solo si el touch está activo
+    // 4. Decaimiento de Felicidad
     if (hasTouchFeature()) {
         if (now - lastHappinessDecayTime >= HAPPINESS_DECAY_MS) {
             lastHappinessDecayTime = now;
             if (currentHappiness > MIN_HAPPINESS) {
                 currentHappiness--;
-                Serial.print("[STATS] Felicidad disminuida a: ");
-                Serial.println(currentHappiness);
             }
         }
     }
 }
 
-// =====================================================
-// ALERTAS SONORAS DE CONSTANTES VITALES
-// Rugido de hambre, melodía somnolienta y tos por CO2
-// =====================================================
-
-void checkConditionSounds()
+void checkConditionSounds(void)
 {
 #if USE_BUZZER
     if (isMuted || soundPlaying) return;
-    if (!isHatched || currentAnimation == DEAD || currentAnimation == BIRTH || currentAnimation == IDLE_EGG) return;
+    if (!isHatched || currentAnimation == POP || currentAnimation == DEAD || 
+        currentAnimation == BIRTH || currentAnimation == IDLE_EGG) return;
 
     uint32_t now = millis();
 
-    // 1. Alerta de CO2 Alto: Tos periódica mientras el aire esté contaminado (Prioridad de peligro)
+    // 1. Tos de alarma si CO2 es peligroso
     if (hasCO2Feature() && co2High) {
         if (now - lastCoughSoundTime >= CO2_COUGH_INTERVAL_MS) {
             lastCoughSoundTime = now;
-            Serial.println("[AUDIO] Tos por CO2 alto");
             playSoundSequence(SOUND_COUGH, sizeof(SOUND_COUGH) / sizeof(SOUND_COUGH[0]));
             return;
         }
     }
 
-    // Si está durmiendo, no emite rugidos de hambre ni melodías de cansancio activo
     if (currentAnimation == SLEEP) return;
 
-    // 2. Alerta de Hambre: Rugido de estómago cuando lleva tiempo sin comer
+    // 2. Rugido de hambre
     if (hasButtonFeature()) {
         if (now - lastFeedTestTime >= HUNGER_ALERT_TIME_MS) {
             if (now - lastHungerSoundTime >= HUNGER_SOUND_INTERVAL_MS) {
                 lastHungerSoundTime = now;
-                Serial.println("[AUDIO] Rugido de estómago (hambre)");
                 playSoundSequence(SOUND_HUNGER_GROWL, sizeof(SOUND_HUNGER_GROWL) / sizeof(SOUND_HUNGER_GROWL[0]));
                 return;
             }
         }
     }
 
-    // 3. Alerta de Sueño: Melodía somnolienta descendente cuando lleva mucho tiempo despierto en la luz
+    // 3. Melodía somnolienta
     if (hasLightFeature() && !isDark) {
         if (continuousAwakeTime >= SLEEP_ALERT_TIME_MS) {
             if (now - lastSleepySoundTime >= SLEEP_SOUND_INTERVAL_MS) {
                 lastSleepySoundTime = now;
-                Serial.println("[AUDIO] Melodía somnolienta (pide descansar)");
                 playSoundSequence(SOUND_SLEEPY, sizeof(SOUND_SLEEPY) / sizeof(SOUND_SLEEPY[0]));
                 return;
             }
@@ -1313,39 +1272,59 @@ void checkConditionSounds()
 #endif
 }
 
-// =====================================================
-// SETUP
-// =====================================================
+/* ========================================================================== */
+/* SETUP & LOOP                                                               */
+/* ========================================================================== */
 
-void setup()
+void setup(void)
 {
     Serial.begin(115200);
     delay(100);
 
-    Serial.println("\n=== GOTCHILAB SENIOR EDITION START ===");
-    Wire.begin(OLED_SDA, OLED_SCL);
+    Serial.println();
+    Serial.println(F("=================================================="));
+    Serial.println(F("                 GOTCHILAB_ START                 "));
+    Serial.println(F("=================================================="));
+
+    Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
 
 #if USE_TOUCH_SENSOR
-    pinMode(TOUCH_PIN, INPUT);
+    pinMode(PIN_TOUCH, INPUT);
 #endif
 
 #if USE_LIGHT_SENSOR
-    pinMode(LIGHT_SENSOR_PIN, INPUT);
+    pinMode(PIN_LDR, INPUT);
+    analogReadResolution(12);
+    analogSetPinAttenuation(PIN_LDR, ADC_11db);
 #endif
 
 #if USE_BUZZER
     ledcSetup(BUZZER_CHANNEL, 2000, BUZZER_RESOLUTION);
-    ledcAttachPin(BUZZER_PIN, BUZZER_CHANNEL);
+    ledcAttachPin(PIN_BUZZER, BUZZER_CHANNEL);
     ledcWriteTone(BUZZER_CHANNEL, 0);
     ledcWrite(BUZZER_CHANNEL, 0);
-    pinMode(MUTE_PIN, INPUT_PULLUP);
+    pinMode(PIN_MUTE, INPUT_PULLUP);
 #endif
 
-    initSensors();
+#if USE_CO2_SENSOR
+    // Configurar y comprobar jumper de modo ferias / bypass de CO2
+    pinMode(PIN_FAIR_MODE, INPUT_PULLUP);
+    delay(10);
+    bool fairModeActive = (digitalRead(PIN_FAIR_MODE) == LOW);
+    if (fairModeActive) {
+        Serial.println(F("[BOOT] >>> MODO FERIAS ACTIVO (PIN_FAIR_MODE a GND) <<<"));
+        Serial.println(F("[BOOT] Bypass de CO2 activo: SCD30 omitido para demostraciones."));
+    }
+    initSensors(fairModeActive);
+#else
+    initSensors(true);
+#endif
 
     if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS)) {
-        Serial.println("[ERROR] OLED no encontrada");
-        while (true) delay(1000);
+        Serial.println(F("[ERROR CRITICO] Display OLED SSD1306 no encontrado en I2C!"));
+        while (true) {
+            delay(1000);
+        }
     }
 
     display.clearDisplay();
@@ -1356,8 +1335,8 @@ void setup()
 
 #if USE_LIGHT_SENSOR
     {
-        int lightValue = analogRead(LIGHT_SENSOR_PIN);
-        isDark = lightValue < LIGHT_THRESHOLD;
+        uint16_t lightVal = analogRead(PIN_LDR);
+        isDark = (lightVal < LDR_DARK_THRESHOLD);
         lastDarkState = isDark;
     }
 #else
@@ -1366,39 +1345,31 @@ void setup()
 #endif
 
 #if USE_CO2_SENSOR
-    updateSensors();
-    currentCO2ppm = getCO2();
+    if (hasCO2Feature()) {
+        updateSensors();
+        currentCO2ppm = getCO2();
+    } else {
+        currentCO2ppm = 400;
+    }
 #else
     currentCO2ppm = 400;
 #endif
 
     resetToEggState();
 
-    lastFrameTime = millis();
-    lastLightReadTime = millis();
-    lastTouchReadTime = millis();
-    lastCO2LogicTime = millis();
-    lastCO2CheckTime = millis();
-    lastAwakeCheckTime = millis();
-    lastHappinessDecayTime = millis();
-
-    Serial.println("=== GOTCHILAB LISTO ===");
+    Serial.println(F("[BOOT] Sistema inicializado exitosamente."));
 }
 
-// =====================================================
-// LOOP
-// =====================================================
-
-void loop()
+void loop(void)
 {
     uint32_t now = millis();
 
-    // Pantalla de muerte / Game Over activa
+    // Gestión de estado DEAD (Pantalla de Game Over con reinicio asistido)
     if (currentAnimation == DEAD) {
         updateSound();
-        // Permite reiniciar de inmediato pulsando el botón o tocando el sensor tras 1.5s, o al agotar el tiempo
-        bool skipRequested = (now - deathTime >= 1500) && (isButtonPressed() || isTouchActive());
-        if (skipRequested || (now - deathTime >= DEATH_SCREEN_DURATION_MS)) {
+
+        bool restartRequested = (now - deathTime >= 1500UL) && (isButtonPressed() || isTouchActive());
+        if (restartRequested || (now - deathTime >= DEATH_SCREEN_DURATION_MS)) {
             resetToEggState();
         }
         return;
@@ -1422,17 +1393,12 @@ void loop()
     handleCO2Sensor();
 #endif
 
-    // Chequear pin de silencio (mute toggle por puente a GND)
     handleMutePin();
-
-    // Actualizar lógica de estado, inanición, felicidad y cansancio
     updateGameStats();
-
-    // Comprobar alertas sonoras ambientales y vitales (hambre, sueño y tos)
     checkConditionSounds();
-
     updateSound();
 
+    // Motor de Renderizado Gráfico a 5 FPS (200 ms por cuadro)
     if (now - lastFrameTime >= FRAME_TIME_MS) {
         lastFrameTime = now;
 
@@ -1486,7 +1452,13 @@ void loop()
                     return;
                 }
                 else if (currentAnimation == POP) {
-                    triggerDeath(DEATH_OVERFED);
+                    // Secuencia gráfica de explosión/desvanecimiento completada obligatoriamente:
+                    // Ahora pasamos formalmente al estado DEAD y dibujamos la pantalla de Game Over
+                    currentAnimation = DEAD;
+                    deathReason = pendingDeathReason;
+                    deathTime = now;
+                    playAnimationSound(DEAD);
+                    drawDeathScreen();
                     return;
                 }
                 else if (currentAnimation == SLEEP) {

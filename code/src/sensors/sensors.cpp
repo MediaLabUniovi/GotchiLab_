@@ -1,71 +1,99 @@
+/**
+ * @file sensors.cpp
+ * @brief Implementation of Sensor Abstraction Layer for GotchiLab_.
+ * @author José Escobedo Vázquez / MediaLab_
+ * @license MIT
+ */
+
 #include "sensors.h"
-#include "../config/config.h"
+#include <Arduino.h>
+#include "config/config.h"
 
 #if USE_CO2_SENSOR
 #include <Wire.h>
 #include <SparkFun_SCD30_Arduino_Library.h>
-SCD30 scd30;
-bool scd30Available = false;
+static SCD30 scd30;
+static bool scd30Available = false;
 #endif
 
-int co2Value = 400;
+static bool co2SensorEnabled = false;
+static int co2Value = 400;
 
-void initSensors() {
+void initSensors(bool fairModeActive)
+{
+#if USE_BUTTON_SENSOR
+    pinMode(PIN_BUTTON, INPUT_PULLUP);
+#endif
 
 #if USE_CO2_SENSOR
-    // Iniciar SCD30 con auto-calibración deshabilitada por defecto para evitar lecturas distorsionadas
+    if (fairModeActive) {
+        Serial.println(F("[SENSORS] Jumper de MODO FERIA detectado (GND)."));
+        Serial.println(F("[SENSORS] Bypass de CO2 activado: Sensor deshabilitado, operando en linea base limpia (400 ppm)."));
+        co2SensorEnabled = false;
+        scd30Available = false;
+        co2Value = 400;
+        return;
+    }
+
+    co2SensorEnabled = true;
+
+    // Iniciar SCD30 con auto-calibración deshabilitada por defecto para evitar distorsiones
     if (scd30.begin() == false) {
-        Serial.println("[SENSORS] SCD30 no detectado en bus I2C (Verifique cables SDA/SCL)");
+        Serial.println(F("[SENSORS] SCD30 no detectado en bus I2C (Verifique conexion SDA/SCL)"));
         scd30Available = false;
     } else {
-        Serial.println("[SENSORS] SCD30 iniciado correctamente");
+        Serial.println(F("[SENSORS] SCD30 NDIR iniciado correctamente."));
         scd30Available = true;
-        // Intervalo de lectura de 2 segundos en el sensor
         scd30.setMeasurementInterval(2);
-        // Si el usuario sopla o el sensor se descalibró, el ASC puede disparar el offset
-        scd30.setAutoSelfCalibration(false); 
+        scd30.setAutoSelfCalibration(false);
     }
-#endif
-
-#if USE_BUTTON_SENSOR
-    pinMode(BUTTON_PIN, INPUT_PULLUP);
+#else
+    (void)fairModeActive;
+    co2SensorEnabled = false;
 #endif
 }
 
-void updateSensors() {
-
+void updateSensors(void)
+{
 #if USE_CO2_SENSOR
-    if (scd30Available && scd30.dataAvailable()) {
+    if (co2SensorEnabled && scd30Available && scd30.dataAvailable()) {
         scd30.readMeasurement();
         uint16_t rawCO2 = scd30.getCO2();
-        
-        // Validación de rango físico plausible (NDIR SCD30 mide entre 400 y 10000 ppm)
+
+        // Validacion de rango fisico plausible (SCD30: 350 - 10000 ppm)
         if (rawCO2 >= 350 && rawCO2 <= 10000) {
-            co2Value = rawCO2;
+            co2Value = static_cast<int>(rawCO2);
         } else {
-            Serial.print("[SENSORS] Lectura SCD30 anómala o descartada: ");
+            Serial.print(F("[SENSORS] Lectura SCD30 anomala descartada: "));
             Serial.println(rawCO2);
         }
     }
 #endif
-
 }
 
-int getCO2() {
+int getCO2(void)
+{
     return co2Value;
 }
 
-bool isCO2Connected() {
+bool isCO2Connected(void)
+{
 #if USE_CO2_SENSOR
-    return scd30Available;
+    return (scd30Available && co2SensorEnabled);
 #else
     return false;
 #endif
 }
 
-bool isButtonPressed() {
+bool isCO2SensorEnabled(void)
+{
+    return co2SensorEnabled;
+}
+
+bool isButtonPressed(void)
+{
 #if USE_BUTTON_SENSOR
-    return digitalRead(BUTTON_PIN) == LOW;
+    return digitalRead(PIN_BUTTON) == LOW;
 #else
     return false;
 #endif
