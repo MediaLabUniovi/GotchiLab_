@@ -1,0 +1,856 @@
+/* ==========================================================================
+   GotchiLab_ :: Apple & Linear Inspired High-End UI Stylesheet
+   MediaLab_ STEAM Education // ESP32 Web Serial Deployer
+   ========================================================================== */
+
+:root {
+  --bg-deep: #050812;
+  --bg-surface: rgba(9, 14, 26, 0.62);
+  --bg-surface-elevated: rgba(14, 22, 38, 0.70);
+  --bg-chassis: #060914;
+  
+  --border-glass: rgba(255, 255, 255, 0.10);
+  --border-cyan-highlight: rgba(0, 240, 255, 0.42);
+  --border-subtle: #162033;
+  
+  --cyan: #00f0ff;
+  --cyan-glow: rgba(0, 240, 255, 0.55);
+  --green: #00ff9d;
+  --green-glow: rgba(0, 255, 157, 0.40);
+  --amber: #ffb800;
+  --red: #ff3860;
+  
+  --text-main: #e2e8f0;
+  --text-muted: #8899ac;
+  --text-bright: #ffffff;
+  
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-logo: 'Comfortaa', 'Nunito', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  min-height: 100vh;
+  /* Deep, elegant cybernetic lab backdrop with subtle luminous highlights */
+  background: 
+    radial-gradient(circle at 14% 28%, rgba(0, 240, 255, 0.075) 0%, transparent 38%),
+    radial-gradient(circle at 86% 62%, rgba(0, 220, 255, 0.065) 0%, transparent 42%),
+    radial-gradient(circle at 50% 100%, rgba(14, 165, 233, 0.05) 0%, transparent 50%),
+    linear-gradient(180deg, #040710 0%, #060b17 50%, #04060e 100%);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+  position: relative;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  zoom: 1.1; /* Scale entire interface to 110% */
+}
+
+/* ==========================================================================
+   1. Ambient Lights, Grid & Retro Pixel Universe
+   ========================================================================== */
+
+canvas#ambientPixelCanvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.ambient-glow {
+  position: fixed;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(120px);
+  z-index: 0;
+}
+
+.glow-cyan {
+  width: 750px;
+  height: 750px;
+  background: radial-gradient(circle, rgba(0, 240, 255, 0.11) 0%, rgba(0, 150, 255, 0.03) 45%, transparent 70%);
+  top: 5%;
+  right: -80px;
+}
+
+.glow-blue {
+  width: 650px;
+  height: 650px;
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.07) 0%, transparent 70%);
+  bottom: 5%;
+  left: 20%;
+}
+
+/* Dedicated ambient glow for the left side of the screen */
+.glow-left {
+  width: 700px;
+  height: 700px;
+  background: radial-gradient(circle, rgba(0, 240, 255, 0.08) 0%, rgba(20, 45, 90, 0.04) 40%, transparent 70%);
+  top: 15%;
+  left: -150px;
+}
+
+/* Crisp, Refined Cybernetic Blueprint Grid (Deep Dark High-Contrast) */
+.ambient-grid-pattern {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 0;
+  background-image: 
+    linear-gradient(to right, rgba(0, 240, 255, 0.032) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 240, 255, 0.032) 1px, transparent 1px);
+  background-size: 38px 38px;
+  mask-image: radial-gradient(circle at 50% 50%, black 65%, rgba(0, 0, 0, 0.20) 95%);
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, black 65%, rgba(0, 0, 0, 0.20) 95%);
+}
+
+/* ==========================================================================
+   2. Main Viewport & Navigation (Thicker Bar & Authentic Branding)
+   ========================================================================== */
+
+.app-viewport {
+  position: relative;
+  z-index: 2;
+  max-width: 1680px;
+  margin: 0 auto;
+  padding: 158px 32px 40px 32px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Thicker, Highly Polished Navigation Bar (Harmonized with Lower Stage) */
+.navbar {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto 24px auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 28px;
+  min-height: 82px;
+  background: rgba(12, 22, 40, 0.72);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-top: 2px solid rgba(0, 240, 255, 0.6);
+  border-radius: 16px;
+  box-shadow: 
+    0 15px 35px rgba(0, 0, 0, 0.45),
+    0 0 20px rgba(0, 240, 255, 0.08);
+}
+
+.nav-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+
+/* GotchiLab_ Official Link Component */
+.brand-title-link {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: baseline;
+  transition: all 0.25s ease;
+}
+
+.brand-title {
+  font-size: 1.45rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: var(--text-bright);
+  transition: color 0.25s ease, transform 0.25s ease;
+}
+
+.brand-title span {
+  color: var(--cyan);
+  text-shadow: 0 0 16px var(--cyan-glow);
+}
+
+.brand-title-link:hover .brand-title {
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.brand-title-link:hover .brand-title span {
+  text-shadow: 0 0 24px var(--cyan), 0 0 35px rgba(0, 240, 255, 0.9);
+}
+
+.brand-tag {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+/* MediaLab_ Official Serigraphy Brand Component (Stacked + Blinking Underscore) */
+.medialab-brand-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  text-decoration: none;
+  background: rgba(10, 18, 34, 0.60);
+  border: 1px solid rgba(0, 240, 255, 0.30);
+  padding: 8px 16px;
+  border-radius: 12px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+}
+
+.medialab-brand-card:hover {
+  background: rgba(0, 240, 255, 0.14);
+  border-color: var(--cyan);
+  box-shadow: 0 0 24px rgba(0, 240, 255, 0.35);
+  transform: translateY(-1.5px);
+}
+
+/* Authentic Voluminica Stacked Typography */
+.medialab-logo-stacked {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  font-family: var(--font-logo);
+  font-weight: 700;
+  font-size: 1.25rem;
+  line-height: 0.84;
+  letter-spacing: -0.5px;
+  color: #ffffff;
+}
+
+.ml-word-media {
+  display: block;
+}
+
+.ml-word-lab {
+  display: block;
+}
+
+/* Authentic MediaLab Blinking Underscore Cursor */
+.cursor-blink {
+  display: inline-block;
+  color: var(--cyan);
+  font-weight: 900;
+  text-shadow: 0 0 12px var(--cyan);
+  animation: cursorBlink 1.0s infinite;
+  margin-left: 1px;
+}
+
+@keyframes cursorBlink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.medialab-brand-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  padding-left: 12px;
+}
+
+.ml-meta-inst {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #cbd5e1;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.ml-meta-campus {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  color: var(--cyan);
+  letter-spacing: 0.5px;
+}
+
+/* Browser Alert Banner (Hidden by default, active only if unsupported) */
+.browser-banner {
+  display: none !important;
+  width: 100%;
+  max-width: 1200px;
+  margin: -18px auto 18px auto;
+  background: rgba(255, 59, 92, 0.14);
+  border: 1px solid var(--red);
+  padding: 14px 20px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  align-items: center;
+  gap: 14px;
+}
+
+.browser-banner.active {
+  display: flex !important;
+}
+
+.banner-icon { font-size: 1.4rem; }
+.banner-text strong { color: var(--red); display: block; margin-bottom: 3px; }
+
+/* ==========================================================================
+   3. Harmonious Centered Experience Stage (Unified Balanced Composition)
+   ========================================================================== */
+
+.experience-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 100%;
+  margin: 0;
+  flex: 1;
+  transform: translateX(160px); /* Shift both blocks further to the right */
+}
+
+/* Left Station (Ultra-Translucent Frosted Glass HUD) */
+.control-station {
+  flex: 0 0 620px;
+  max-width: 640px;
+  z-index: 2; /* In FRONT of the floating character */
+  position: relative;
+  border-radius: 20px;
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.glass-hud {
+  background: rgba(6, 11, 20, 0.13); /* Subtly higher crystal transparency */
+  backdrop-filter: blur(12px) saturate(185%);
+  -webkit-backdrop-filter: blur(12px) saturate(185%);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-top: 1.5px solid rgba(0, 240, 255, 0.50);
+  box-shadow: 
+    0 25px 60px rgba(0, 0, 0, 0.65),
+    0 0 30px rgba(0, 240, 255, 0.08);
+  transition: all 0.3s ease;
+}
+
+.glass-hud:hover {
+  border-color: rgba(0, 240, 255, 0.30);
+  border-top-color: var(--cyan);
+  background: rgba(6, 11, 20, 0.17);
+}
+
+/* Station Blocks */
+.station-block {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.block-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.block-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  color: var(--cyan);
+}
+
+.block-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.block-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.target-profile-badge {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--cyan);
+  background: rgba(0, 240, 255, 0.1);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+/* Hardware Switches Cluster */
+.switches-cluster {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.switch-pill {
+  background: rgba(8, 14, 26, 0.22); /* Subtly more translucent */
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.25s ease;
+}
+
+.switch-pill:hover {
+  background: rgba(12, 20, 38, 0.38);
+  border-color: rgba(0, 240, 255, 0.35);
+  transform: translateY(-1px);
+}
+
+.switch-pill.active {
+  border-color: var(--border-cyan-highlight);
+  background: rgba(0, 240, 255, 0.05);
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.10);
+}
+
+.pill-body {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+}
+
+.pill-icon-badge {
+  font-size: 1.5rem;
+  line-height: 1;
+  padding-top: 2px;
+}
+
+.pill-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.pill-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pill-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-bright);
+}
+
+.pill-role {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--cyan);
+  background: rgba(0, 240, 255, 0.12);
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.pill-desc {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+.pill-pin {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+/* Minimalist Toggle Track */
+.toggle-track {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.toggle-track input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-thumb {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #1a2538;
+  border-radius: 20px;
+  border: 1px solid #28374f;
+  transition: .25s ease;
+}
+
+.toggle-thumb:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background-color: #64748b;
+  border-radius: 50%;
+  transition: .25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+input:checked + .toggle-thumb {
+  background-color: rgba(0, 240, 255, 0.2);
+  border-color: var(--cyan);
+}
+
+input:checked + .toggle-thumb:before {
+  transform: translateX(18px);
+  background-color: var(--cyan);
+  box-shadow: 0 0 8px var(--cyan);
+}
+
+/* Master Action Button */
+.btn-master-flash {
+  position: relative;
+  width: 100%;
+  padding: 16px 24px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #04060a;
+  background: linear-gradient(135deg, #00f0ff 0%, #00ff9d 100%);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 0 25px rgba(0, 240, 255, 0.4);
+  transition: all 0.25s ease;
+  font-family: var(--font-sans);
+  overflow: hidden;
+}
+
+.btn-master-flash:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 0 40px rgba(0, 240, 255, 0.65);
+  filter: brightness(1.06);
+}
+
+.btn-master-flash:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn-master-flash:disabled {
+  background: #172233;
+  color: #4b5a70;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.btn-flash-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.flash-bolt-icon {
+  fill: #04060a;
+}
+
+/* HUD Progress Meter */
+.flash-hud-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.meter-info-row {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.meter-pct {
+  color: var(--cyan);
+  font-weight: 700;
+}
+
+.meter-track {
+  width: 100%;
+  height: 8px;
+  background: #0d1421;
+  border: 1px solid var(--border-glass);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.meter-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #00f0ff, #00ff9d);
+  box-shadow: 0 0 12px #00f0ff;
+  transition: width 0.2s ease;
+}
+
+.meter-steps {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.step-chip {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: rgba(14, 21, 35, 0.6);
+  border: 1px solid var(--border-glass);
+  color: var(--text-muted);
+  flex: 1;
+  text-align: center;
+  transition: all 0.25s ease;
+}
+
+.step-chip.active {
+  color: var(--cyan);
+  border-color: var(--cyan);
+  background: rgba(0, 240, 255, 0.15);
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+}
+
+.step-chip.done {
+  color: var(--green);
+  border-color: var(--green);
+  background: rgba(0, 255, 157, 0.12);
+}
+
+/* Compact Telemetry Stream */
+.telemetry-terminal {
+  background: rgba(3, 6, 12, 0.26); /* Subtle extra transparency */
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  border: 1px solid var(--border-glass);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.terminal-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(7, 12, 22, 0.36);
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border-glass);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.btn-clear-term {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  cursor: pointer;
+}
+
+.btn-clear-term:hover { color: var(--text-bright); }
+
+.terminal-view {
+  height: 105px;
+  overflow-y: auto;
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: #94a3b8;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.log-dim { color: #526173; }
+.log-cyan { color: var(--cyan); }
+.log-success { color: var(--green); font-weight: 600; }
+.log-error { color: var(--red); font-weight: 600; }
+
+/* ==========================================================================
+   4. Pure Floating Penguin Stage (Frameless, Giant & Centered Overlap)
+   ========================================================================== */
+
+.pure-penguin-stage {
+  flex: 0 0 1480px;
+  max-width: 1540px;
+  margin-left: -580px; /* Deep, expanded intersection: massive portion of giant penguin behind the glass station */
+  z-index: 1;          /* Behind the control station */
+  position: relative;
+  pointer-events: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+canvas#liveOledCanvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 2 / 1;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  /* Colossal glowing character illumination without any border or background frame */
+  filter: drop-shadow(0 0 35px rgba(0, 240, 255, 0.95)) drop-shadow(0 0 100px rgba(0, 240, 255, 0.55));
+  animation: floatPenguin 4.2s ease-in-out infinite alternate;
+}
+
+@keyframes floatPenguin {
+  0% { transform: translateY(0px); }
+  100% { transform: translateY(-12px); }
+}
+
+/* ==========================================================================
+   5. Subtle Edge Badges (Credits & Target Pill)
+   ========================================================================== */
+
+.author-credits {
+  position: fixed;
+  bottom: 16px;
+  left: 20px;
+  z-index: 10;
+  background: rgba(6, 10, 18, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 240, 255, 0.18);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.author-credits strong { color: var(--text-bright); }
+.author-credits a { color: var(--cyan); text-decoration: none; }
+.author-credits a:hover { text-decoration: underline; }
+
+.target-status-pill {
+  position: fixed;
+  bottom: 16px;
+  right: 20px;
+  z-index: 10;
+  background: rgba(6, 10, 18, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 255, 157, 0.25);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--green);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-indicator-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+}
+
+.pill-download-btn {
+  background: rgba(0, 255, 157, 0.15);
+  color: var(--green);
+  border: 1px solid rgba(0, 255, 157, 0.3);
+  border-radius: 4px;
+  padding: 2px 7px;
+  text-decoration: none;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.pill-download-btn:hover {
+  background: var(--green);
+  color: #04060a;
+}
+
+/* ==========================================================================
+   6. Responsive Adaptations
+   ========================================================================== */
+
+@media (max-width: 1024px) {
+  .experience-stage {
+    flex-direction: column;
+    margin-top: 10px;
+    transform: none; /* No horizontal offset on mobile screens */
+  }
+  
+  .control-station {
+    flex: 1 1 100%;
+    max-width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .pure-penguin-stage {
+    flex: 1 1 100%;
+    max-width: 520px;
+    margin-left: 0;
+    margin-right: 0;
+    margin-top: 15px;
+    width: 100%;
+  }
+
+  .author-credits, .target-status-pill {
+    position: static;
+    margin-top: 14px;
+  }
+}
+
+@media (max-width: 600px) {
+  .switches-cluster {
+    grid-template-columns: 1fr;
+  }
+  
+  .app-viewport {
+    padding: 16px 14px 60px 14px;
+  }
+  
+  .brand-title {
+    font-size: 1.15rem;
+  }
+}

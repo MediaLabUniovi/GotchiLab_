@@ -4,6 +4,8 @@
 [![Platform: ESP32](https://img.shields.io/badge/Platform-ESP32-blue.svg)](https://www.espressif.com/)
 [![Framework: Arduino](https://img.shields.io/badge/Framework-Arduino-teal.svg)](https://www.arduino.cc/)
 [![Toolchain: PlatformIO](https://img.shields.io/badge/Toolchain-PlatformIO-orange.svg)](https://platformio.org/)
+[![Web Flasher: Web Serial](https://img.shields.io/badge/Web%20Flasher-Web%20Serial%20API-00F0FF.svg)](web/)
+[![Version: V4](https://img.shields.io/badge/Release-V4%20(Web%20Deployer)-green.svg)](web/)
 
 **GotchiLab_** es una mascota electrónica interactiva de código abierto diseñada y desarrollada en **MediaLab_** para talleres educativos de tecnología y divulgación **STEAM** (Ciencia, Tecnología, Ingeniería, Arte y Matemáticas).
 
@@ -191,74 +193,63 @@ Siguiendo la especificación de diseño educativo:
 
 ---
 
-## 8. Guía de Compilación y Carga con PlatformIO
+## 8. Guía de Compilación y Matriz Modular (PlatformIO)
 
 ### Requisitos Previos
-- [PlatformIO Core (CLI)](https://docs.platformio.org/en/latest/core/index.html) o extensión oficial de PlatformIO para [Visual Studio Code](https://code.visualstudio.com/).
+- [PlatformIO Core (CLI)](https://docs.platformio.org/en/latest/core/index.html) o extensión oficial para [VS Code](https://code.visualstudio.com/).
 - Cable USB de datos conectado al ESP32.
 
-### Compilación desde CLI
+### Matriz Modular de Perfiles de Hardware (7 Variantes)
+El firmware implementa desacoplamiento condicional mediante flags de preprocesador en `code/platformio.ini`, permitiendo generar binarios optimizados para cualquier combinación de periféricos:
 
-Accede al directorio `code/`:
+| Entorno PlatformIO | CO₂ (SCD30) | Luz (LDR) | Táctil (TTP223) | Audio (Buzzer) | Descripción del Perfil |
+| :--- | :---: | :---: | :---: | :---: | :--- |
+| `full` (default) | ✅ Sí | ✅ Sí | ✅ Sí | ✅ Sí | Configuración completa oficial GotchiLab_ |
+| `no_co2` | ❌ No | ✅ Sí | ✅ Sí | ✅ Sí | Recomendado: Optimización de coste de sensor óptico |
+| `no_co2_silent` | ❌ No | ✅ Sí | ✅ Sí | ❌ No | Visual interactivo sin sonido ni sensor CO₂ |
+| `no_co2_no_touch` | ❌ No | ✅ Sí | ❌ No | ✅ Sí | Modo auto-eclosión sin sensor capacitivo |
+| `no_co2_no_light` | ❌ No | ❌ No | ✅ Sí | ✅ Sí | Modo siempre despierto sin ciclo día/noche |
+| `minimal` | ❌ No | ❌ No | ❌ No | ❌ No | Solo OLED y pulsador de alimentación |
+| `full_silent` | ✅ Sí | ✅ Sí | ✅ Sí | ❌ No | Monitoreo ambiental completo en silencio |
+
 ```bash
 cd code
-```
 
-```bash
-# Compilar el proyecto completo
+# Compilar una variante específica:
+pio run -e no_co2
+
+# O compilar todas las variantes simultáneamente:
 pio run
-```
-
-### Carga al Microcontrolador
-
-```bash
-# Carga automática en el primer puerto detectado:
-pio run -t upload
-
-# O especificando el puerto COM (Windows) o /dev/ttyUSB* (Linux/Mac):
-pio run -t upload --upload-port COM3
-```
-
-### Monitor Serie
-
-```bash
-pio device monitor -b 115200
 ```
 
 ---
 
-## 9. Generación de Binario Unificado y Flasheo Web
+## 9. GotchiLab_ Web Deployer & Flasheador Web Oficial (V4)
 
-Para talleres masivos donde los alumnos no disponen del entorno de desarrollo ni de compiladores, se puede fusionar el bootloader, las tablas de partición y el firmware en un único archivo binario (`firmware_merged.bin`) para grabarlo directamente desde el navegador web o con `esptool`.
+A partir de la versión **V4**, GotchiLab_ incorpora su propio entorno de programación web interactivo en `web/`, eliminando la necesidad de instalar herramientas locales para usuarios y alumnos en talleres STEAM.
 
-### 1. Generar el Binario Fusionado con esptool
-Tras compilar con PlatformIO (`pio run`), ejecuta la siguiente orden desde el directorio `code/`:
+### Características Principales:
+1. **Flasheo Web Serial Nativo**: Integración directa con `esptool-js` en el navegador (Google Chrome / Microsoft Edge). Graba el microcontrolador por USB a 460800 baudios en offset unificado `0x00000000`.
+2. **Simulador OLED en Vivo**: Canvas animado a 5 FPS que emula el display SSD1306 de 128x64 píxeles con la estética luminosa del pingüino en tiempo real (huevo, nacimiento, reposo, comida, mimos, sueño).
+3. **Selector Dinámico de Sensores**: 4 interruptores interactivos (CO₂, Luz, Táctil y Voz) con descripciones pedagógicas. La interfaz resuelve automáticamente la variante binaria óptima del manifiesto (`web/data/manifest.json`).
+4. **Consola de Telemetría Serie**: Terminal integrado en pantalla que muestra el progreso del flasheo en 5 etapas (Puerto, Sincronización, Descarga, Flash 0x0 y Verificación).
 
-```bash
-python -m esptool --chip esp32 merge_bin -o firmware_merged.bin \
-  --flash_mode dio --flash_freq 40m --flash_size 4MB \
-  0x1000 .pio/build/esp32dev/bootloader.bin \
-  0x8000 .pio/build/esp32dev/partitions.bin \
-  0x10000 .pio/build/esp32dev/firmware.bin
+### Lanzamiento Local Rápido (1 Clic)
+Para arrancar el deployer web localmente bajo un contexto seguro (`http://localhost:8000/web/`):
+```cmd
+iniciar_web.bat
 ```
+El script inicia automáticamente un servidor HTTP local en Python y abre el navegador por defecto.
 
-> [!TIP]
-> Si utilizas la herramienta interna de PlatformIO, la ruta suele ser:
-> `~/.platformio/packages/tool-esptoolpy/esptool.py`
-
-### 2. Flashear sin Compilar mediante Línea de Comandos
-Para programar un microcontrolador virgen con el archivo generado:
-
-```bash
-python -m esptool --chip esp32 --port COM3 --baud 460800 write_flash 0x0 firmware_merged.bin
+### Compilación y Empaquetado de la Matriz (`build_deploy.bat`)
+Para compilar todas las variantes de firmware y generar los binarios unificados `0x0` listos para la web:
+```cmd
+build_deploy.bat
 ```
-
-### 3. Flasheo Web (ESP Web Tools / Navegador Web)
-1. Conecta el ESP32 al ordenador mediante cable USB.
-2. Abre Google Chrome o Microsoft Edge y visita una plataforma de programación web compatible con WebSerial (como [ESP Web Tools](https://esphome.github.io/esp-web-tools/) o [Adafruit WebSerial ESPTool](https://adafruit.github.io/Adafruit_WebSerial_ESPTool/)).
-3. Selecciona **Connect** y elige el puerto serie del ESP32.
-4. Carga el archivo `firmware_merged.bin` en el offset `0x0000` (o `0x0`).
-5. Pulsa **Program / Flash**. El firmware se cargará en segundos sin requerir instalación de Python, drivers ni software de compilación.
+Este pipeline ejecuta `scripts/build_matrix.py`, que:
+1. Compila los 7 perfiles PlatformIO.
+2. Combina bootloader (`0x1000`), particiones (`0x8000`) y firmware (`0x10000`) en un único archivo fusionado por variante en `web/binaries/`.
+3. Actualiza el manifiesto de versiones `web/data/manifest.json`.
 
 ---
 
@@ -270,11 +261,26 @@ GotchiLab_/
 ├── README.md                       # Manual técnico y guía de ingeniería
 ├── prompt.md                       # Especificación maestra del sistema
 ├── GotchiLab_.pdf                  # Guía didáctica para talleres presenciales
+├── iniciar_web.bat                 # Lanzador de un solo clic para el Flasheador Web local
+├── build_deploy.bat                # Pipeline automatizado de compilación de binarios V4
 ├── Esquematico/                    # Esquemas Fritzing (.fzz), partes (.fzpz), PDF y PNG
 ├── PlacaSTL/                       # Archivos de fabricación 3D para chasis y PCB
 ├── VideoToCarray/                  # Pipeline Python/OpenCV para conversión de vídeo a C
+├── scripts/
+│   ├── build_matrix.py             # Compilador y unificador esptool de las 7 variantes
+│   └── extract_animations.py       # Extractor de cuadros de animación a formato web
+├── web/                            # GotchiLab_ Web Serial Deployer (V4)
+│   ├── index.html                  # Panel de control de interfaz de usuario
+│   ├── css/
+│   │   └── styles.css              # Estética Dark Cybernetic Lab & Glassmorphism
+│   ├── js/
+│   │   ├── app.js                  # Motor Web Serial, FSM visual y selector de hardware
+│   │   └── animations.js           # Cuadros de animación 128x64 codificados en Base64
+│   ├── data/
+│   │   └── manifest.json           # Manifiesto JSON con las 7 variantes de firmware
+│   └── binaries/                   # Binarios unificados (offset 0x00000000)
 └── code/
-    ├── platformio.ini              # Configuración PlatformIO (ESP32 DevKit v1)
+    ├── platformio.ini              # Matriz de 7 perfiles modulares (ESP32 DevKit v1)
     ├── include/
     │   ├── pins_config.h           # Centralización de GPIOs y asignación de pines
     │   └── config.h                # Feature flags, umbrales y tiempos de supervivencia
@@ -284,7 +290,7 @@ GotchiLab_/
         │   └── config.h            # Reenvío de compatibilidad hacia include/config.h
         ├── sensors/
         │   ├── sensors.h           # Declaración del subsistema de sensores
-        │   └── sensors.cpp         # SCD30 con bypass por jumper de ferias y botón
+        │   └── sensors.cpp         # SCD30 con bypass y botón
         └── animations/             # Cuadros de animación monocromáticos en Flash (15 frames)
 ```
 

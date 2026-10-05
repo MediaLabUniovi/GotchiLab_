@@ -228,3 +228,13 @@ Actúa basándote en las especificaciones del archivo `prompt.md`:
 5. El buzzer utiliza el canal LEDC 0 de ESP32 sin bloquear la CPU y respeta el estado de silencio en GPIO 27 (MUTE_PIN).
 6. Si sugieres cambios o nuevo código, entrega el diff o el código completo respetando la estructura modular `config.h`, `sensors/`, `animations/` y `main.cpp`.
 ```
+
+---
+
+## 8. Ecosistema de Despliegue Web y Matriz Modular (V4)
+
+- **Flasheo Web Serial Directo (`web/`)**: Interfaz gráfica construida con `esptool-js` para programar el ESP32 desde Google Chrome o Microsoft Edge vía USB a 460800 baudios en offset `0x00000000` sin instalar controladores ni compiladores.
+- **Simulador OLED en Vivo**: Canvas HTML5 animado a 5 FPS que emula el display SSD1306 (128x64) con la estética luminosa del pingüino en tiempo real.
+- **Matriz Modular de 7 Binarios**: Pipeline automatizado (`scripts/build_matrix.py` y `build_deploy.bat`) que compila las 7 variantes de hardware de `code/platformio.ini` y genera imágenes unificadas `0x0` combinando bootloader, tabla de particiones y firmware.
+- **Lanzador Local Seguro (`iniciar_web.bat`)**: Script de un clic para Windows que arranca un servidor HTTP local en `http://localhost:8000/web/` garantizando un contexto seguro para la Web Serial API.
+

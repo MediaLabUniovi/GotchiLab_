@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GotchiLab_ // MediaLab_ Deployer & Live OLED</title>
+  <meta name="description" content="Sistema de despliegue web y flasheo Web Serial para GotchiLab_ de MediaLab_ UniOvi.">
+  <link rel="stylesheet" href="css/styles.css">
+  
+  <!-- Premium Typography including authentic MediaLab Comfortaa -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Nunito:wght@800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Ambient Retro Pixel Universe Background & Glowing Grids -->
+  <canvas id="ambientPixelCanvas"></canvas>
+  <div class="ambient-glow glow-cyan"></div>
+  <div class="ambient-glow glow-blue"></div>
+  <div class="ambient-glow glow-left"></div>
+  <div class="ambient-grid-pattern"></div>
+
+  <!-- Main Container -->
+  <div class="app-viewport">
+    
+    <!-- Top Bar Navigation & MediaLab_ Identity (Thicker & Authentic Serigraphy) -->
+    <header class="navbar">
+      <div class="nav-brand">
+        <a href="https://www.medialab-uniovi.es/proyecto1.php?id=85&lang=es" target="_blank" rel="noopener noreferrer" class="brand-title-link" title="Ver proyecto oficial GotchiLab en MediaLab UniOvi">
+          <span class="brand-title">GOTCHI<span>LAB_</span></span>
+        </a>
+        <span class="brand-tag">STEAM FIRMWARE DEPLOYER</span>
+      </div>
+
+      <!-- MediaLab_ Official Branding with Authentic Stacked Serigraphy & Blinking Cursor -->
+      <a href="https://www.medialab-uniovi.es/" target="_blank" rel="noopener noreferrer" class="medialab-brand-card" title="MediaLab Universidad de Oviedo">
+        <div class="medialab-logo-stacked">
+          <span class="ml-word-media">media</span>
+          <span class="ml-word-lab">lab<span class="cursor-blink">_</span></span>
+        </div>
+        <div class="medialab-brand-meta">
+          <span class="ml-meta-inst">UNIVERSIDAD DE OVIEDO</span>
+          <span class="ml-meta-campus">EPI GIJÓN</span>
+        </div>
+      </a>
+    </header>
+
+    <!-- Browser Serial Alert Banner (hidden if supported) -->
+    <div id="browserAlertBanner" class="browser-banner">
+      <div class="banner-icon">⚠️</div>
+      <div class="banner-text">
+        <strong>Navegador sin soporte para Web Serial API</strong>
+        Para flashear tu ESP32 por USB directamente desde la web, abre esta página en <strong>Google Chrome</strong> o <strong>Microsoft Edge</strong> en tu ordenador.
+      </div>
+    </div>
+
+    <!-- Asymmetric Master Layout (Apple & Linear Design Inspired) -->
+    <main class="experience-stage">
+      
+      <!-- Left Column: Controls, Hardware Switches & Central Flashing Hub -->
+      <section class="control-station glass-hud">
+        
+        <!-- Module Selectors (All Default to ON) -->
+        <div class="station-block">
+          <div class="block-header">
+            <span class="block-eyebrow">CONFIGURACIÓN DE HARDWARE</span>
+            <div class="block-title-row">
+              <h2 class="block-title">Módulos Conectados</h2>
+              <span class="target-profile-badge" id="targetProfileLabel">GotchiLab Completo</span>
+            </div>
+          </div>
+
+          <div class="switches-cluster">
+            
+            <!-- 1. Sensor CO2 (Pulmones) -->
+            <div class="switch-pill active" id="card-co2" title="Haz clic para activar o desactivar">
+              <div class="pill-body">
+                <div class="pill-icon-badge">🫁</div>
+                <div class="pill-meta">
+                  <div class="pill-header">
+                    <span class="pill-name">Sensor CO₂</span>
+                    <span class="pill-role">Sus pulmones</span>
+                  </div>
+                  <div class="pill-desc">Mide si el aire está limpio. Si falta ventilar o hay humo, se resfría y tose.</div>
+                  <div class="pill-pin">I2C: GPIO 22/21 &bull; SCD30</div>
+                </div>
+              </div>
+              <label class="toggle-track">
+                <input type="checkbox" id="sw-co2" checked>
+                <span class="toggle-thumb"></span>
+              </label>
+            </div>
+
+            <!-- 2. Sensor Luz LDR (Ojos) -->
+            <div class="switch-pill active" id="card-light" title="Haz clic para activar o desactivar">
+              <div class="pill-body">
+                <div class="pill-icon-badge">👁️</div>
+                <div class="pill-meta">
+                  <div class="pill-header">
+                    <span class="pill-name">Sensor de Luz</span>
+                    <span class="pill-role">Sus ojos</span>
+                  </div>
+                  <div class="pill-desc">Sabe si es de día o de noche. Al taparlo con la mano, se duerme para descansar.</div>
+                  <div class="pill-pin">ADC: GPIO 34 &bull; Fotorresistencia LDR</div>
+                </div>
+              </div>
+              <label class="toggle-track">
+                <input type="checkbox" id="sw-light" checked>
+                <span class="toggle-thumb"></span>
+              </label>
+            </div>
+
+            <!-- 3. Sensor Táctil TTP223 (Caricias) -->
+            <div class="switch-pill active" id="card-touch" title="Haz clic para activar o desactivar">
+              <div class="pill-body">
+                <div class="pill-icon-badge">✨</div>
+                <div class="pill-meta">
+                  <div class="pill-header">
+                    <span class="pill-name">Sensor Táctil</span>
+                    <span class="pill-role">Tus caricias</span>
+                  </div>
+                  <div class="pill-desc">¡Siente tus mimos! Acaricia su cabeza para darle felicidad y ayudarle a nacer.</div>
+                  <div class="pill-pin">DIGITAL: GPIO 27 &bull; TTP223 Capacitivo</div>
+                </div>
+              </div>
+              <label class="toggle-track">
+                <input type="checkbox" id="sw-touch" checked>
+                <span class="toggle-thumb"></span>
+              </label>
+            </div>
+
+            <!-- 4. Zumbador / Audio (Su voz) -->
+            <div class="switch-pill active" id="card-buzzer" title="Haz clic para activar o desactivar">
+              <div class="pill-body">
+                <div class="pill-icon-badge">🎵</div>
+                <div class="pill-meta">
+                  <div class="pill-header">
+                    <span class="pill-name">Su Voz / Melodías</span>
+                    <span class="pill-role">Zumbador</span>
+                  </div>
+                  <div class="pill-desc">¡La voz del pingüino! Pía feliz al comer, canta con tus caricias y pide comida.</div>
+                  <div class="pill-pin">PWM: GPIO 25 &bull; Audio Piezoeléctrico</div>
+                </div>
+              </div>
+              <label class="toggle-track">
+                <input type="checkbox" id="sw-buzzer" checked>
+                <span class="toggle-thumb"></span>
+              </label>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Flashing Core -->
+        <div class="station-block flash-core-block">
+          
+          <!-- Master Action Button -->
+          <button id="btnStartFlash" class="btn-master-flash">
+            <span class="btn-flash-glare"></span>
+            <span class="btn-flash-content">
+              <svg class="flash-bolt-icon" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+              </svg>
+              <span>INICIAR CARGA AL ESP32</span>
+            </span>
+          </button>
+
+          <!-- HUD Progress Meter -->
+          <div class="flash-hud-meter">
+            <div class="meter-info-row">
+              <span id="flashStatusLabel">Listo para flashear por Web Serial</span>
+              <span id="flashProgressPct" class="meter-pct">0%</span>
+            </div>
+            <div class="meter-track">
+              <div class="meter-fill" id="flashProgressBar"></div>
+            </div>
+            
+            <!-- Step Indicators -->
+            <div class="meter-steps">
+              <span class="step-chip" id="step-1">1. PUERTO</span>
+              <span class="step-chip" id="step-2">2. SYNC</span>
+              <span class="step-chip" id="step-3">3. BINARIO</span>
+              <span class="step-chip" id="step-4">4. FLASH 0x0</span>
+              <span class="step-chip" id="step-5">5. LISTO</span>
+            </div>
+          </div>
+
+          <!-- Telemetry Terminal -->
+          <div class="telemetry-terminal">
+            <div class="terminal-top">
+              <span class="terminal-title">TELEMETRÍA SERIE // 460800 BAUD</span>
+              <button id="btnClearLog" class="btn-clear-term" title="Limpiar salida">Limpiar</button>
+            </div>
+            <div class="terminal-view" id="telemetryConsole">
+              <div class="log-dim">[SISTEMA] GotchiLab_ Deployer inicializado.</div>
+              <div class="log-dim">[SISTEMA] Selecciona tus módulos arriba y pulsa "INICIAR CARGA AL ESP32".</div>
+              <div class="log-cyan">[CONFIG] Imagen unificada en offset 0x00000000.</div>
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- Pure Giant Floating Penguin Stage (No frames, no boxes, free floating & centered overlap) -->
+      <div class="pure-penguin-stage">
+        <canvas id="liveOledCanvas" width="1792" height="896"></canvas>
+      </div>
+
+    </main>
+
+  </div>
+
+  <!-- Bottom-Left Credits Badge -->
+  <aside class="author-credits">
+    <div class="credits-project">GotchiLab_ &bull; Mascota STEAM</div>
+    <div class="credits-author">Autor: <strong>José Escobedo Vázquez</strong> &bull; <a href="https://www.medialab-uniovi.es/" target="_blank" rel="noopener">MediaLab_ UniOvi</a></div>
+    <div class="credits-license">Firmware Open-Source &bull; Licencia MIT</div>
+  </aside>
+
+  <!-- Bottom-Right Active Target Pill -->
+  <aside class="target-status-pill">
+    <span class="status-indicator-dot"></span>
+    <span id="pillProfileText">gotchilab_full.bin</span>
+    <a id="btnDownloadRawBin" href="binaries/gotchilab_full.bin" download class="pill-download-btn" title="Descargar archivo .bin para flasheo externo">
+      &darr;
+    </a>
+  </aside>
+
+  <!-- Application Scripts -->
+  <script src="js/animations.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

@@ -3,4 +3,5 @@
 .vscode/
 **/.vscode/
 *.bin
+!web/binaries/*.bin
 *.elf

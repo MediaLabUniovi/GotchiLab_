@@ -1,0 +1,130 @@
+{
+  "project": "GotchiLab_",
+  "targetChip": "ESP32",
+  "flashOffset": "0x00000000",
+  "flashSize": "4MB",
+  "flashMode": "dio",
+  "flashFreq": "40m",
+  "buildTimestamp": "2026-10-05T20:04:09.683741+00:00",
+  "totalVariants": 7,
+  "variants": [
+    {
+      "id": "full",
+      "name": "GotchiLab Completo (Todos los Sensores)",
+      "category": "Completo",
+      "filename": "gotchilab_full.bin",
+      "path": "binaries/gotchilab_full.bin",
+      "sizeBytes": 527824,
+      "sizeFormatted": "515.5 KB",
+      "features": {
+        "co2": true,
+        "light": true,
+        "touch": true,
+        "buzzer": true
+      },
+      "description": "Configuración completa: Sensor óptico NDIR SCD30, fotorresistencia LDR, sensor táctil TTP223 y zumbador piezoeléctrico."
+    },
+    {
+      "id": "no_co2",
+      "name": "GotchiLab Sin Sensor de CO2",
+      "category": "Recomendado",
+      "filename": "gotchilab_no_co2.bin",
+      "path": "binaries/gotchilab_no_co2.bin",
+      "sizeBytes": 521744,
+      "sizeFormatted": "509.5 KB",
+      "features": {
+        "co2": false,
+        "light": true,
+        "touch": true,
+        "buzzer": true
+      },
+      "description": "Excluye el driver del sensor SCD30. Mascota interactiva con LDR, TTP223 y Zumbador."
+    },
+    {
+      "id": "no_co2_silent",
+      "name": "GotchiLab Silencioso Sin CO2",
+      "category": "Silencioso",
+      "filename": "gotchilab_no_co2_silent.bin",
+      "path": "binaries/gotchilab_no_co2_silent.bin",
+      "sizeBytes": 513408,
+      "sizeFormatted": "501.4 KB",
+      "features": {
+        "co2": false,
+        "light": true,
+        "touch": true,
+        "buzzer": false
+      },
+      "description": "Sin sensor de CO2 ni zumbador piezoeléctrico. Operación silenciosa con LDR y sensor táctil."
+    },
+    {
+      "id": "no_co2_no_touch",
+      "name": "GotchiLab Sin CO2 ni Táctil",
+      "category": "Estándar",
+      "filename": "gotchilab_no_co2_no_touch.bin",
+      "path": "binaries/gotchilab_no_co2_no_touch.bin",
+      "sizeBytes": 521456,
+      "sizeFormatted": "509.2 KB",
+      "features": {
+        "co2": false,
+        "light": true,
+        "touch": false,
+        "buzzer": true
+      },
+      "description": "Sin sensor de CO2 ni táctil. Eclosión automática del huevo por temporizador (auto-hatch)."
+    },
+    {
+      "id": "no_co2_no_light",
+      "name": "GotchiLab Sin CO2 ni Luz (Siempre Despierto)",
+      "category": "Estándar",
+      "filename": "gotchilab_no_co2_no_light.bin",
+      "path": "binaries/gotchilab_no_co2_no_light.bin",
+      "sizeBytes": 514944,
+      "sizeFormatted": "502.9 KB",
+      "features": {
+        "co2": false,
+        "light": false,
+        "touch": true,
+        "buzzer": true
+      },
+      "description": "Sin sensor de CO2 ni LDR. Mascota despierta de forma continua."
+    },
+    {
+      "id": "minimal",
+      "name": "GotchiLab Básico Mínimo (Display + Botón)",
+      "category": "Mínimo",
+      "filename": "gotchilab_minimal.bin",
+      "path": "binaries/gotchilab_minimal.bin",
+      "sizeBytes": 507008,
+      "sizeFormatted": "495.1 KB",
+      "features": {
+        "co2": false,
+        "light": false,
+        "touch": false,
+        "buzzer": false
+      },
+      "description": "Montaje básico con hardware esencial: Pantalla OLED SSD1306 y pulsador físico de alimentación."
+    },
+    {
+      "id": "full_silent",
+      "name": "GotchiLab Completo Silencioso",
+      "category": "Especial",
+      "filename": "gotchilab_full_silent.bin",
+      "path": "binaries/gotchilab_full_silent.bin",
+      "sizeBytes": 519920,
+      "sizeFormatted": "507.7 KB",
+      "features": {
+        "co2": true,
+        "light": true,
+        "touch": true,
+        "buzzer": false
+      },
+      "description": "Sensores ambientales completos (CO2, LDR, TTP223) con zumbador desactivado a nivel de compilación."
+    }
+  ],
+  "defaults": {
+    "co2": true,
+    "light": true,
+    "touch": true,
+    "buzzer": true
+  }
+}
