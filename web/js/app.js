@@ -126,7 +126,9 @@ class HardwareConfigurator {
             this.manifest = {
                 variants: [
                     { id: "full", filename: "gotchilab_full.bin", name: "GotchiLab Completo (Todos los Sensores)", path: "binaries/gotchilab_full.bin", features: { co2: true, light: true, touch: true, buzzer: true } },
+                    { id: "full_no_touch", filename: "gotchilab_full_no_touch.bin", name: "GotchiLab Completo Sin Táctil", path: "binaries/gotchilab_full_no_touch.bin", features: { co2: true, light: true, touch: false, buzzer: true } },
                     { id: "no_co2", filename: "gotchilab_no_co2.bin", name: "GotchiLab Sin CO2", path: "binaries/gotchilab_no_co2.bin", features: { co2: false, light: true, touch: true, buzzer: true } },
+                    { id: "no_co2_no_touch", filename: "gotchilab_no_co2_no_touch.bin", name: "GotchiLab Sin CO2 ni Táctil", path: "binaries/gotchilab_no_co2_no_touch.bin", features: { co2: false, light: true, touch: false, buzzer: true } },
                     { id: "no_co2_silent", filename: "gotchilab_no_co2_silent.bin", name: "GotchiLab Silencioso Sin CO2", path: "binaries/gotchilab_no_co2_silent.bin", features: { co2: false, light: true, touch: true, buzzer: false } },
                     { id: "minimal", filename: "gotchilab_minimal.bin", name: "GotchiLab Básico Mínimo", path: "binaries/gotchilab_minimal.bin", features: { co2: false, light: false, touch: false, buzzer: false } }
                 ]
@@ -142,10 +144,10 @@ class HardwareConfigurator {
     }
     
     bindEvents() {
-        // Allow clicking the entire card or the switch
-        document.querySelectorAll('.switch-card').forEach(card => {
+        // Permitir clic en el cuadrado entero o directamente en la barrita
+        document.querySelectorAll('.switch-pill').forEach(card => {
             card.addEventListener('click', (e) => {
-                if (e.target.tagName.toLowerCase() === 'input') return;
+                if (e.target.closest('.toggle-track')) return;
                 const input = card.querySelector('input[type="checkbox"]');
                 if (input) {
                     input.checked = !input.checked;
@@ -173,8 +175,8 @@ class HardwareConfigurator {
     resolveTarget() {
         const flags = this.getFlags();
         
-        // Update active class on cards
-        document.querySelectorAll('.switch-card').forEach(card => {
+        // Actualizar clase active en los cuadrados de los sensores
+        document.querySelectorAll('.switch-pill').forEach(card => {
             const input = card.querySelector('input[type="checkbox"]');
             if (input && input.checked) {
                 card.classList.add('active');
@@ -191,10 +193,10 @@ class HardwareConfigurator {
         
         for (const variant of this.manifest.variants) {
             let score = 0;
-            if (variant.features.co2 === flags.co2) score += 8;
-            if (variant.features.light === flags.light) score += 4;
-            if (variant.features.touch === flags.touch) score += 2;
-            if (variant.features.buzzer === flags.buzzer) score += 1;
+            if (variant.features.co2 === flags.co2) score += 10;
+            if (variant.features.light === flags.light) score += 10;
+            if (variant.features.touch === flags.touch) score += 10;
+            if (variant.features.buzzer === flags.buzzer) score += 10;
             
             if (score > highestScore) {
                 highestScore = score;
@@ -235,6 +237,8 @@ class FlashHub {
         this.progressPct = document.getElementById('flashProgressPct');
         this.progressStatus = document.getElementById('flashStatusLabel');
         this.telemetry = document.getElementById('telemetryConsole');
+        this.modal = document.getElementById('flashSuccessModal');
+        this.btnModalClose = document.getElementById('btnModalClose');
         
         this.verifyBrowserSupport();
         this.bindEvents();
@@ -297,6 +301,33 @@ class FlashHub {
                 if (this.telemetry) this.telemetry.innerHTML = '';
             });
         }
+        if (this.btnModalClose) {
+            this.btnModalClose.addEventListener('click', () => this.closeModal());
+        }
+        if (this.modal) {
+            this.modal.addEventListener('click', (e) => {
+                if (e.target === this.modal) this.closeModal();
+            });
+        }
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.modal && this.modal.classList.contains('active')) {
+                this.closeModal();
+            }
+        });
+    }
+
+    openModal() {
+        if (this.modal) {
+            this.modal.classList.add('active');
+            this.modal.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    closeModal() {
+        if (this.modal) {
+            this.modal.classList.remove('active');
+            this.modal.setAttribute('aria-hidden', 'true');
+        }
     }
     
     log(message, typeClass = 'log-info') {
@@ -317,10 +348,13 @@ class FlashHub {
     }
     
     setStep(stepNumber) {
-        document.querySelectorAll('.step-node').forEach((node, i) => {
+        document.querySelectorAll('.step-chip').forEach((node, i) => {
             node.classList.remove('active', 'done');
-            if (i + 1 < stepNumber) node.classList.add('done');
-            else if (i + 1 === stepNumber) node.classList.add('active');
+            if (i + 1 < stepNumber) {
+                node.classList.add('done');
+            } else if (i + 1 === stepNumber) {
+                node.classList.add('active');
+            }
         });
     }
     
@@ -390,7 +424,14 @@ class FlashHub {
             const buf = await resp.arrayBuffer();
             
             this.log(`Imagen recibida: ${(buf.byteLength / 1024).toFixed(1)} KB (Offset 0x00000000)`, 'log-success');
-            const binaryString = new TextDecoder('latin1').decode(buf);
+            
+            // Conversión segura 1:1 de ArrayBuffer a binary string (evita la reasignación WHATWG latin1/windows-1252 en 0x80-0x9F)
+            const bytes = new Uint8Array(buf);
+            let binaryString = '';
+            const chunkSize = 0x8000;
+            for (let i = 0; i < bytes.length; i += chunkSize) {
+                binaryString += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+            }
             
             this.setStep(4);
             this.setProgress(40, 'Escribiendo en memoria Flash...');
@@ -415,10 +456,13 @@ class FlashHub {
             
             await this.esploader.after();
             
+            this.setStep(6);
             this.setProgress(100, '¡GotchiLab_ cargado con éxito!');
             this.log('====================================================', 'log-success');
-            this.log('¡CARGA COMPLETADA! Tu pingüino ya está en el OLED.', 'log-success');
+            this.log('¡CARGA COMPLETADA! Pulsa EN (RST) para iniciar el OLED.', 'log-success');
             this.log('====================================================', 'log-success');
+            
+            this.openModal();
             
         } catch (err) {
             console.error(err);

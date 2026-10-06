@@ -41,6 +41,20 @@ VARIANTS = [
         "category": "Completo"
     },
     {
+        "id": "full_no_touch",
+        "env": "full_no_touch",
+        "filename": "gotchilab_full_no_touch.bin",
+        "name": "GotchiLab Completo Sin Táctil (Auto-Hatch)",
+        "features": {
+            "co2": True,
+            "light": True,
+            "touch": False,
+            "buzzer": True
+        },
+        "description": "Sensores ambientales completos (CO2 SCD30, LDR, Zumbador) con eclosión automática sin sensor táctil.",
+        "category": "Recomendado"
+    },
+    {
         "id": "no_co2",
         "env": "no_co2",
         "filename": "gotchilab_no_co2.bin",

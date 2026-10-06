@@ -5,8 +5,8 @@
   "flashSize": "4MB",
   "flashMode": "dio",
   "flashFreq": "40m",
-  "buildTimestamp": "2026-10-05T20:04:09.683741+00:00",
-  "totalVariants": 7,
+  "buildTimestamp": "2026-10-06T06:52:54.045405+00:00",
+  "totalVariants": 8,
   "variants": [
     {
       "id": "full",
@@ -14,8 +14,8 @@
       "category": "Completo",
       "filename": "gotchilab_full.bin",
       "path": "binaries/gotchilab_full.bin",
-      "sizeBytes": 527824,
-      "sizeFormatted": "515.5 KB",
+      "sizeBytes": 528288,
+      "sizeFormatted": "515.9 KB",
       "features": {
         "co2": true,
         "light": true,
@@ -25,13 +25,29 @@
       "description": "Configuración completa: Sensor óptico NDIR SCD30, fotorresistencia LDR, sensor táctil TTP223 y zumbador piezoeléctrico."
     },
     {
+      "id": "full_no_touch",
+      "name": "GotchiLab Completo Sin Táctil (Auto-Hatch)",
+      "category": "Recomendado",
+      "filename": "gotchilab_full_no_touch.bin",
+      "path": "binaries/gotchilab_full_no_touch.bin",
+      "sizeBytes": 527840,
+      "sizeFormatted": "515.5 KB",
+      "features": {
+        "co2": true,
+        "light": true,
+        "touch": false,
+        "buzzer": true
+      },
+      "description": "Sensores ambientales completos (CO2 SCD30, LDR, Zumbador) con eclosión automática sin sensor táctil."
+    },
+    {
       "id": "no_co2",
       "name": "GotchiLab Sin Sensor de CO2",
       "category": "Recomendado",
       "filename": "gotchilab_no_co2.bin",
       "path": "binaries/gotchilab_no_co2.bin",
-      "sizeBytes": 521744,
-      "sizeFormatted": "509.5 KB",
+      "sizeBytes": 522224,
+      "sizeFormatted": "510.0 KB",
       "features": {
         "co2": false,
         "light": true,
@@ -46,8 +62,8 @@
       "category": "Silencioso",
       "filename": "gotchilab_no_co2_silent.bin",
       "path": "binaries/gotchilab_no_co2_silent.bin",
-      "sizeBytes": 513408,
-      "sizeFormatted": "501.4 KB",
+      "sizeBytes": 513856,
+      "sizeFormatted": "501.8 KB",
       "features": {
         "co2": false,
         "light": true,
@@ -62,8 +78,8 @@
       "category": "Estándar",
       "filename": "gotchilab_no_co2_no_touch.bin",
       "path": "binaries/gotchilab_no_co2_no_touch.bin",
-      "sizeBytes": 521456,
-      "sizeFormatted": "509.2 KB",
+      "sizeBytes": 521744,
+      "sizeFormatted": "509.5 KB",
       "features": {
         "co2": false,
         "light": true,
@@ -78,8 +94,8 @@
       "category": "Estándar",
       "filename": "gotchilab_no_co2_no_light.bin",
       "path": "binaries/gotchilab_no_co2_no_light.bin",
-      "sizeBytes": 514944,
-      "sizeFormatted": "502.9 KB",
+      "sizeBytes": 515408,
+      "sizeFormatted": "503.3 KB",
       "features": {
         "co2": false,
         "light": false,
@@ -94,8 +110,8 @@
       "category": "Mínimo",
       "filename": "gotchilab_minimal.bin",
       "path": "binaries/gotchilab_minimal.bin",
-      "sizeBytes": 507008,
-      "sizeFormatted": "495.1 KB",
+      "sizeBytes": 507248,
+      "sizeFormatted": "495.4 KB",
       "features": {
         "co2": false,
         "light": false,
@@ -110,8 +126,8 @@
       "category": "Especial",
       "filename": "gotchilab_full_silent.bin",
       "path": "binaries/gotchilab_full_silent.bin",
-      "sizeBytes": 519920,
-      "sizeFormatted": "507.7 KB",
+      "sizeBytes": 520368,
+      "sizeFormatted": "508.2 KB",
       "features": {
         "co2": true,
         "light": true,

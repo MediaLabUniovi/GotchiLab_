@@ -228,6 +228,30 @@
     </a>
   </aside>
 
+  <!-- Pop-up Modal de Finalización y Aviso Botón EN -->
+  <div id="flashSuccessModal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-badge-success">✓</div>
+      <span class="modal-eyebrow">GOTCHILAB_ // CARGA COMPLETADA</span>
+      <h3 class="modal-title">¡Firmware Flasheado con Éxito!</h3>
+      
+      <div class="modal-instructions-box">
+        <div class="modal-step-badge">PASO FINAL</div>
+        <p class="modal-instruction-text">
+          Para que el ESP32 inicie y tu pingüino despierte en el OLED, <strong>pulsa una vez el botón físico <span class="hardware-key">EN</span> (o <span class="hardware-key">RST</span>)</strong> de tu placa.
+        </p>
+      </div>
+
+      <p class="modal-subtext">
+        El puerto USB se ha liberado correctamente. ¡Tu mascota STEAM ya está lista para jugar!
+      </p>
+
+      <button id="btnModalClose" class="modal-btn-confirm" type="button">
+        <span>¡ENTENDIDO!</span>
+      </button>
+    </div>
+  </div>
+
   <!-- Application Scripts -->
   <script src="js/animations.js"></script>
   <script type="module" src="js/app.js"></script>

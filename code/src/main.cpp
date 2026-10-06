@@ -919,8 +919,15 @@ void handleButton(void)
         if (now - lastButtonTime > DEBOUNCE_MS) {
             lastButtonTime = now;
 
+            if (currentAnimation == IDLE_EGG && !birthTriggered) {
+                Serial.println(F("[BUTTON] Pulsador en cascaron -> ECLOSION (BIRTH)"));
+                birthTriggered = true;
+                setAnimation(BIRTH);
+                lastButtonPhysicalState = state;
+                return;
+            }
+
             if (!isHatched ||
-                currentAnimation == IDLE_EGG ||
                 currentAnimation == BIRTH ||
                 currentAnimation == POP ||
                 currentAnimation == DEAD ||
@@ -1067,18 +1074,27 @@ void handleTouchSensor(void)
 
 void handleAutoHatch(void)
 {
-#if (!USE_TOUCH_SENSOR) && AUTO_HATCH_IF_NO_TOUCH
     if (!isHatched && !birthTriggered && currentAnimation == IDLE_EGG) {
         uint32_t elapsed = millis() - eggStartTime;
+#if (!USE_TOUCH_SENSOR)
         if (elapsed >= AUTO_HATCH_DELAY_MS) {
-            Serial.print(F("[AUTO] Eclosion automatica tras "));
+            Serial.print(F("[AUTO] Eclosion automatica (Sin Touch) tras "));
             Serial.print(elapsed);
             Serial.println(F(" ms"));
             birthTriggered = true;
             setAnimation(BIRTH);
         }
-    }
+#else
+        // Respaldo de seguridad: si pasan 8s y no hay sensor táctil conectado, eclosiona para entrar al juego
+        if (elapsed >= 8000UL) {
+            Serial.print(F("[AUTO] Eclosion por tiempo de espera (8s) tras "));
+            Serial.print(elapsed);
+            Serial.println(F(" ms"));
+            birthTriggered = true;
+            setAnimation(BIRTH);
+        }
 #endif
+    }
 }
 
 void handleCO2Sensor(void)
@@ -1381,9 +1397,8 @@ void loop(void)
 
 #if USE_TOUCH_SENSOR
     handleTouchSensor();
-#else
-    handleAutoHatch();
 #endif
+    handleAutoHatch();
 
 #if USE_BUTTON_SENSOR
     handleButton();
