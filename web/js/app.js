@@ -572,6 +572,66 @@ class PixelUniverseEngine {
 }
 
 // ============================================================================
+// 5. Interactive Ambient Cursor Spotlight (Subtle Neon Glow Under Pointer & Glass)
+// ============================================================================
+
+class CursorSpotlight {
+    constructor(elementId = 'cursorSpotlight') {
+        this.el = document.getElementById(elementId);
+        if (!this.el) return;
+        
+        // Skip on devices without hover support
+        if (window.matchMedia && window.matchMedia('(hover: none)').matches) return;
+        
+        this.targetX = window.innerWidth / 2;
+        this.targetY = window.innerHeight / 2;
+        this.currentX = this.targetX;
+        this.currentY = this.targetY;
+        this.isActive = false;
+        this.lerpFactor = 0.16; // Organic, elegant trailing physics
+        
+        this.init();
+    }
+    
+    init() {
+        window.addEventListener('pointermove', (e) => {
+            this.targetX = e.clientX;
+            this.targetY = e.clientY;
+            
+            if (!this.isActive) {
+                this.currentX = e.clientX;
+                this.currentY = e.clientY;
+                this.el.style.transform = `translate3d(${this.currentX.toFixed(1)}px, ${this.currentY.toFixed(1)}px, 0)`;
+                this.isActive = true;
+                this.el.classList.add('active');
+            }
+        }, { passive: true });
+        
+        document.addEventListener('mouseleave', () => {
+            this.isActive = false;
+            this.el.classList.remove('active');
+        });
+        
+        document.addEventListener('mouseenter', () => {
+            this.isActive = true;
+            this.el.classList.add('active');
+        });
+        
+        this.loop();
+    }
+    
+    loop() {
+        if (this.isActive) {
+            this.currentX += (this.targetX - this.currentX) * this.lerpFactor;
+            this.currentY += (this.targetY - this.currentY) * this.lerpFactor;
+            this.el.style.transform = `translate3d(${this.currentX.toFixed(1)}px, ${this.currentY.toFixed(1)}px, 0)`;
+        }
+        
+        requestAnimationFrame(() => this.loop());
+    }
+}
+
+// ============================================================================
 // Initialization
 // ============================================================================
 
@@ -588,4 +648,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // 4. Start Flash Hub
     const flasher = new FlashHub(config);
+
+    // 5. Start Interactive Ambient Cursor Spotlight
+    const spotlight = new CursorSpotlight('cursorSpotlight');
 });

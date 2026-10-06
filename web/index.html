@@ -3,8 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GotchiLab_ // MediaLab_ Deployer & Live OLED</title>
+  <title>GotchiLab_</title>
   <meta name="description" content="Sistema de despliegue web y flasheo Web Serial para GotchiLab_ de MediaLab_ UniOvi.">
+  <link rel="icon" type="image/png" sizes="128x128" href="assets/favicon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32x32.png">
+  <link rel="shortcut icon" href="favicon.ico">
   <link rel="stylesheet" href="css/styles.css">
   
   <!-- Premium Typography including authentic MediaLab Comfortaa -->
@@ -20,6 +23,7 @@
   <div class="ambient-glow glow-blue"></div>
   <div class="ambient-glow glow-left"></div>
   <div class="ambient-grid-pattern"></div>
+  <div class="cursor-spotlight" id="cursorSpotlight" aria-hidden="true"></div>
 
   <!-- Main Container -->
   <div class="app-viewport">
@@ -27,9 +31,7 @@
     <!-- Top Bar Navigation & MediaLab_ Identity (Thicker & Authentic Serigraphy) -->
     <header class="navbar">
       <div class="nav-brand">
-        <a href="https://www.medialab-uniovi.es/proyecto1.php?id=85&lang=es" target="_blank" rel="noopener noreferrer" class="brand-title-link" title="Ver proyecto oficial GotchiLab en MediaLab UniOvi">
-          <span class="brand-title">GOTCHI<span>LAB_</span></span>
-        </a>
+        <span class="brand-title">GOTCHI<span>LAB_</span></span>
         <span class="brand-tag">STEAM FIRMWARE DEPLOYER</span>
       </div>
 
@@ -210,23 +212,26 @@
 
     </main>
 
+    <!-- App Footer -->
+    <footer class="app-footer">
+      <div class="footer-credits">
+        <span class="credits-project">GotchiLab_ &bull; Mascota STEAM</span>
+        <span class="footer-sep">&bull;</span>
+        <span class="credits-author">Autor: <strong>José Escobedo Vázquez</strong> &bull; <a href="https://www.medialab-uniovi.es/" target="_blank" rel="noopener noreferrer">MediaLab_ UniOvi</a></span>
+        <span class="footer-sep">&bull;</span>
+        <span class="credits-license">Firmware Open-Source &bull; Licencia MIT</span>
+      </div>
+
+      <div class="target-status-pill">
+        <span class="status-indicator-dot"></span>
+        <span id="pillProfileText">gotchilab_full.bin</span>
+        <a id="btnDownloadRawBin" href="binaries/gotchilab_full.bin" download class="pill-download-btn" title="Descargar archivo .bin para flasheo externo">
+          &darr;
+        </a>
+      </div>
+    </footer>
+
   </div>
-
-  <!-- Bottom-Left Credits Badge -->
-  <aside class="author-credits">
-    <div class="credits-project">GotchiLab_ &bull; Mascota STEAM</div>
-    <div class="credits-author">Autor: <strong>José Escobedo Vázquez</strong> &bull; <a href="https://www.medialab-uniovi.es/" target="_blank" rel="noopener">MediaLab_ UniOvi</a></div>
-    <div class="credits-license">Firmware Open-Source &bull; Licencia MIT</div>
-  </aside>
-
-  <!-- Bottom-Right Active Target Pill -->
-  <aside class="target-status-pill">
-    <span class="status-indicator-dot"></span>
-    <span id="pillProfileText">gotchilab_full.bin</span>
-    <a id="btnDownloadRawBin" href="binaries/gotchilab_full.bin" download class="pill-download-btn" title="Descargar archivo .bin para flasheo externo">
-      &darr;
-    </a>
-  </aside>
 
   <!-- Pop-up Modal de Finalización y Aviso Botón EN -->
   <div id="flashSuccessModal" class="modal-overlay" aria-hidden="true">
@@ -254,6 +259,6 @@
 
   <!-- Application Scripts -->
   <script src="js/animations.js"></script>
-  <script type="module" src="js/app.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>
