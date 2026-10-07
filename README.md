@@ -4,8 +4,20 @@
 [![Platform: ESP32](https://img.shields.io/badge/Platform-ESP32-blue.svg)](https://www.espressif.com/)
 [![Framework: Arduino](https://img.shields.io/badge/Framework-Arduino-teal.svg)](https://www.arduino.cc/)
 [![Toolchain: PlatformIO](https://img.shields.io/badge/Toolchain-PlatformIO-orange.svg)](https://platformio.org/)
-[![Web Flasher: Web Serial](https://img.shields.io/badge/Web%20Flasher-Web%20Serial%20API-00F0FF.svg)](web/)
-[![Version: V4](https://img.shields.io/badge/Release-V4%20(Web%20Deployer)-green.svg)](web/)
+[![Web Flasher: Web Serial](https://img.shields.io/badge/Web%20Flasher-gotchilab.medialab--uniovi.es-00F0FF.svg)](https://gotchilab.medialab-uniovi.es/)
+[![Version: V4](https://img.shields.io/badge/Release-V4%20(Web%20Deployer)-green.svg)](https://gotchilab.medialab-uniovi.es/)
+
+---
+
+<div align="center">
+
+  <a href="https://gotchilab.medialab-uniovi.es/" target="_blank" rel="noopener noreferrer">
+    <img src="web/assets/button-flasher.svg" alt="PULSA AQUÍ PARA CARGAR TU ESP32 ONLINE" width="800">
+  </a>
+
+</div>
+
+---
 
 **GotchiLab_** es una mascota electrónica interactiva de código abierto diseñada y desarrollada en **MediaLab_** para talleres educativos de tecnología y divulgación **STEAM** (Ciencia, Tecnología, Ingeniería, Arte y Matemáticas).
 
@@ -23,7 +35,7 @@ La criatura virtual es un pingüino animado que habita en una pantalla OLED mono
 6. [Máquina de Estados y Secuencia Gráfica de Muerte](#6-máquina-de-estados-y-secuencia-gráfica-de-muerte)
 7. [Ciclo de Vida Autocontenido (Sin Persistencia)](#7-ciclo-de-vida-autocontenido-sin-persistencia)
 8. [Guía de Compilación y Carga con PlatformIO](#8-guía-de-compilación-y-carga-con-platformio)
-9. [Generación de Binario Unificado y Flasheo Web](#9-generación-de-binario-unificado-y-flasheo-web)
+9. [GotchiLab_ Web Deployer & Flasheador Web Oficial (V4)](#9-gotchilab_-web-deployer--flasheador-web-oficial-v4)
 10. [Estructura del Proyecto](#10-estructura-del-proyecto)
 11. [Licencia](#11-licencia)
 
@@ -226,7 +238,21 @@ pio run
 
 ## 9. GotchiLab_ Web Deployer & Flasheador Web Oficial (V4)
 
-A partir de la versión **V4**, GotchiLab_ incorpora su propio entorno de programación web interactivo en `web/`, eliminando la necesidad de instalar herramientas locales para usuarios y alumnos en talleres STEAM.
+<div align="center">
+
+  <a href="https://gotchilab.medialab-uniovi.es/" target="_blank" rel="noopener noreferrer">
+    <img src="web/assets/button-flasher.svg" alt="PULSA AQUÍ PARA CARGAR TU ESP32 ONLINE" width="800">
+  </a>
+
+</div>
+
+A partir de la versión **V4**, GotchiLab_ incorpora su propio entorno de programación web interactivo disponible directamente en la nube en **[gotchilab.medialab-uniovi.es](https://gotchilab.medialab-uniovi.es/)**, eliminando por completo la necesidad de instalar herramientas de desarrollo como VS Code, PlatformIO o Python para usuarios, familias y alumnos en talleres STEAM.
+
+> [!TIP]
+> ### 🚀 ¿Cómo cargar tu GotchiLab_ en 3 pasos?
+> 1. **Conecta tu ESP32** al PC con un cable USB de datos.
+> 2. **Abre el flasheador** en Google Chrome o Microsoft Edge: [gotchilab.medialab-uniovi.es](https://gotchilab.medialab-uniovi.es/).
+> 3. **Elige tus sensores**, pulsa **"Conectar y Flashear"** y selecciona tu placa. ¡El pingüino cobrará vida en ~30 segundos!
 
 ### Características Principales:
 1. **Flasheo Web Serial Nativo**: Integración directa con `esptool-js` en el navegador (Google Chrome / Microsoft Edge). Graba el microcontrolador por USB a 460800 baudios en offset unificado `0x00000000`.
@@ -271,6 +297,7 @@ GotchiLab_/
 │   └── extract_animations.py       # Extractor de cuadros de animación a formato web
 ├── web/                            # GotchiLab_ Web Serial Deployer (V4)
 │   ├── index.html                  # Panel de control de interfaz de usuario
+│   ├── assets/                     # Identidad gráfica, iconos y botón web flasher
 │   ├── css/
 │   │   └── styles.css              # Estética Dark Cybernetic Lab & Glassmorphism
 │   ├── js/
