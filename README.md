@@ -288,7 +288,8 @@ GotchiLab_/
 ├── prompt.md                       # Especificación maestra del sistema
 ├── GotchiLab_.pdf                  # Guía didáctica para talleres presenciales
 ├── iniciar_web.bat                 # Lanzador de un solo clic para el Flasheador Web local
-├── build_deploy.bat                # Pipeline automatizado de compilación de binarios V4
+├── docs/                           # Documentación auxiliar y capturas de interfaz
+│   └── capturas/                   # Capturas del deployer y spotlight
 ├── Esquematico/                    # Esquemas Fritzing (.fzz), partes (.fzpz), PDF y PNG
 ├── PlacaSTL/                       # Archivos de fabricación 3D para chasis y PCB
 ├── VideoToCarray/                  # Pipeline Python/OpenCV para conversión de vídeo a C
@@ -302,6 +303,7 @@ GotchiLab_/
 │   │   └── styles.css              # Estética Dark Cybernetic Lab & Glassmorphism
 │   ├── js/
 │   │   ├── app.js                  # Motor Web Serial, FSM visual y selector de hardware
+│   │   ├── tour.js                 # Sistema de tutorial guiado interactivo (Spotlight)
 │   │   └── animations.js           # Cuadros de animación 128x64 codificados en Base64
 │   ├── data/
 │   │   └── manifest.json           # Manifiesto JSON con las 7 variantes de firmware

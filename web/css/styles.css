@@ -1218,3 +1218,543 @@ canvas#liveOledCanvas {
   transform: translateY(-1.5px);
   box-shadow: 0 0 28px rgba(0, 255, 157, 0.5);
 }
+
+/* ==========================================================================
+   6. Spotlight Guided Tour (Interactive Onboarding)
+   ========================================================================== */
+
+/* Navbar Tour Trigger Button */
+.nav-right-cluster {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-nav-tour {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(14, 25, 48, 0.70);
+  border: 1px solid rgba(0, 240, 255, 0.40);
+  color: var(--text-bright);
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 6px 13px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+}
+
+.btn-nav-tour:hover {
+  background: rgba(0, 240, 255, 0.16);
+  border-color: var(--cyan);
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.35);
+  transform: translateY(-1px);
+}
+
+/* Assembly Tutorial Guide Button */
+.btn-nav-assembly {
+  text-decoration: none;
+  background: rgba(255, 179, 0, 0.10);
+  border: 1px solid rgba(255, 179, 0, 0.40);
+  color: #ffda79;
+}
+
+.btn-nav-assembly:hover {
+  background: rgba(255, 179, 0, 0.22);
+  border-color: #ffb300;
+  box-shadow: 0 0 16px rgba(255, 179, 0, 0.35);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.assembly-icon-dot {
+  background: rgba(255, 179, 0, 0.20) !important;
+  border-color: #ffb300 !important;
+  color: #ffffff !important;
+  font-size: 0.65rem !important;
+}
+
+.tour-icon-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: rgba(0, 240, 255, 0.2);
+  color: var(--cyan);
+  font-size: 0.70rem;
+  font-weight: 800;
+  border: 1px solid var(--cyan);
+}
+
+@media (max-width: 768px) {
+  .btn-nav-assembly span:not(.tour-icon-dot) {
+    display: none;
+  }
+  .btn-nav-assembly {
+    padding: 6px 8px;
+  }
+}
+
+@media (max-width: 580px) {
+  .btn-nav-tour span:not(.tour-icon-dot) {
+    display: none;
+  }
+  .btn-nav-tour {
+    padding: 6px 8px;
+  }
+}
+
+/* Tour Fullscreen Backdrop Overlay */
+.tour-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  width: 100dvw;
+  height: 100dvh;
+  z-index: 10000;
+  pointer-events: none;
+  background: transparent;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.25s;
+}
+
+.tour-backdrop.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Modal Mode (Step 1): Active darkening and background shielding */
+.tour-backdrop.tour-mode-modal {
+  pointer-events: auto;
+  background: rgba(3, 6, 14, 0.82);
+}
+
+/* Spotlight Perimeter Box with Glowing Cyan Pulse */
+.tour-spotlight-box {
+  position: fixed;
+  border-radius: 14px;
+  border: 2px solid #00e5ff;
+  box-shadow: 
+    0 0 0 9999px rgba(3, 6, 14, 0.80),
+    0 0 28px rgba(0, 229, 255, 0.65),
+    inset 0 0 16px rgba(0, 229, 255, 0.22);
+  pointer-events: none;
+  z-index: 10001;
+  transition: top 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              left 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              width 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              height 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.2s ease;
+  animation: spotlightPulse 2.4s infinite ease-in-out;
+}
+
+@keyframes spotlightPulse {
+  0%, 100% {
+    border-color: #00e5ff;
+    box-shadow: 
+      0 0 0 9999px rgba(3, 6, 14, 0.80),
+      0 0 24px rgba(0, 229, 255, 0.60),
+      inset 0 0 14px rgba(0, 229, 255, 0.20);
+  }
+  50% {
+    border-color: #00ff9d;
+    box-shadow: 
+      0 0 0 9999px rgba(3, 6, 14, 0.80),
+      0 0 34px rgba(0, 255, 157, 0.70),
+      inset 0 0 20px rgba(0, 255, 157, 0.30);
+  }
+}
+
+/* Dynamic Popover Card */
+.tour-card {
+  z-index: 10002;
+  width: 100%;
+  max-width: min(460px, 92vw);
+  box-sizing: border-box;
+  background: rgba(9, 16, 30, 0.94);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border: 1px solid rgba(0, 240, 255, 0.40);
+  border-top: 2px solid var(--cyan);
+  border-radius: 16px;
+  padding: 22px 24px;
+  box-shadow: 
+    0 25px 60px rgba(0, 0, 0, 0.75),
+    0 0 35px rgba(0, 240, 255, 0.16);
+  color: var(--text-main);
+  pointer-events: auto;
+  animation: tourCardFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes tourCardFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Centered Modal Mode (Welcome & Assembly Question) */
+.tour-card-centered {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) !important;
+  width: min(480px, 92vw);
+  max-width: min(480px, 92vw);
+  padding: 24px 26px;
+  box-shadow: 
+    0 0 0 9999px rgba(3, 6, 14, 0.82),
+    0 30px 70px rgba(0, 0, 0, 0.8),
+    0 0 40px rgba(0, 240, 255, 0.25);
+}
+
+/* Floating Mode (Steps 2 & 3) */
+.tour-card-floating {
+  position: fixed;
+  pointer-events: auto;
+  transition: top 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Popover Arrow Indicator */
+.tour-arrow {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.tour-arrow.arrow-bottom {
+  bottom: -10px;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 10px solid rgba(9, 16, 30, 0.94);
+  filter: drop-shadow(0 3px 2px rgba(0, 240, 255, 0.3));
+}
+
+.tour-arrow.arrow-top {
+  top: -10px;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-bottom: 10px solid rgba(9, 16, 30, 0.94);
+  filter: drop-shadow(0 -3px 2px rgba(0, 240, 255, 0.3));
+}
+
+.tour-arrow.arrow-left {
+  left: -10px;
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  border-right: 10px solid rgba(9, 16, 30, 0.94);
+  filter: drop-shadow(-3px 0 2px rgba(0, 240, 255, 0.3));
+}
+
+.tour-arrow.arrow-right {
+  right: -10px;
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  border-left: 10px solid rgba(9, 16, 30, 0.94);
+  filter: drop-shadow(3px 0 2px rgba(0, 240, 255, 0.3));
+}
+
+/* Card Header */
+.tour-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.tour-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tour-step-badge {
+  font-family: var(--font-mono);
+  font-size: 0.70rem;
+  font-weight: 700;
+  color: var(--cyan);
+  background: rgba(0, 240, 255, 0.12);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  padding: 3px 9px;
+  border-radius: 6px;
+  letter-spacing: 0.8px;
+}
+
+.tour-shortcut-hint {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: #64748b;
+  letter-spacing: 0.4px;
+}
+
+.tour-btn-close {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.tour-btn-close:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Card Body */
+.tour-card-body {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.tour-icon-wrap {
+  font-size: 2rem;
+  line-height: 1;
+  background: rgba(14, 25, 48, 0.9);
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  border-radius: 12px;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.1);
+}
+
+.tour-text-wrap {
+  flex: 1;
+}
+
+.tour-title {
+  margin: 0 0 6px 0;
+  font-family: var(--font-sans);
+  font-size: 1.12rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.2px;
+}
+
+.tour-text {
+  margin: 0;
+  font-size: 0.87rem;
+  line-height: 1.5;
+  color: #94a3b8;
+}
+
+/* Branching Question Buttons (¿Has montado tu pingüino?) */
+.tour-branch-options {
+  display: flex;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.tour-btn-branch {
+  flex: 1;
+  padding: 12px 18px;
+  font-family: var(--font-sans);
+  font-size: 0.92rem;
+  font-weight: 700;
+  border-radius: 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none;
+  line-height: 1.25;
+}
+
+.tour-btn-branch-yes {
+  background: linear-gradient(135deg, #00f0ff 0%, #00ff9d 100%);
+  color: #040812;
+  border: none;
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.35);
+}
+
+.tour-btn-branch-yes:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 24px rgba(0, 255, 157, 0.55);
+}
+
+.tour-btn-branch-no {
+  background: rgba(255, 179, 0, 0.12);
+  border: 1px solid rgba(255, 179, 0, 0.45);
+  color: #ffda79;
+}
+
+.tour-btn-branch-no:hover {
+  background: rgba(255, 179, 0, 0.25);
+  border-color: #ffb300;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 0 16px rgba(255, 179, 0, 0.3);
+}
+
+/* Callout para guía de montaje dentro de la tarjeta */
+.tour-assembly-callout {
+  margin-top: 14px;
+  padding: 14px 16px;
+  background: rgba(255, 179, 0, 0.08);
+  border: 1px solid rgba(255, 179, 0, 0.28);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 0.85rem;
+  color: #f1f5f9;
+}
+
+.assembly-callout-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.assembly-callout-icon {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.tour-btn-guide {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #ffb300 0%, #ff8800 100%);
+  color: #050a14;
+  font-family: var(--font-sans);
+  font-size: 0.90rem;
+  font-weight: 800;
+  border-radius: 9px;
+  text-decoration: none;
+  box-shadow: 0 0 18px rgba(255, 179, 0, 0.4);
+  transition: all 0.2s ease;
+}
+
+.tour-btn-guide:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 26px rgba(255, 179, 0, 0.65);
+  color: #000000;
+}
+
+/* Card Footer & Action Buttons */
+.tour-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tour-dots {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.tour-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  transition: all 0.25s ease;
+}
+
+.tour-dot.active {
+  width: 20px;
+  border-radius: 4px;
+  background: var(--cyan);
+  box-shadow: 0 0 8px var(--cyan);
+}
+
+.tour-actions {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+}
+
+.tour-btn {
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tour-btn-primary {
+  background: linear-gradient(135deg, #00f0ff 0%, #00ff9d 100%);
+  color: #040812;
+  border: none;
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.35);
+}
+
+.tour-btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 24px rgba(0, 255, 157, 0.55);
+}
+
+.tour-btn-secondary {
+  background: rgba(14, 25, 48, 0.85);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  color: var(--text-bright);
+}
+
+.tour-btn-secondary:hover {
+  background: rgba(0, 240, 255, 0.15);
+  border-color: var(--cyan);
+  color: #ffffff;
+}
+
+.tour-btn-ghost {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  padding: 8px 10px;
+}
+
+.tour-btn-ghost:hover {
+  color: var(--text-muted);
+}
+
+/* Mobile & Tablet Responsive Contrast Protection */
+@media (max-width: 960px) {
+  body.tour-active .pure-penguin-stage,
+  body.tour-active #liveOledCanvas {
+    opacity: 0.15 !important;
+    pointer-events: none !important;
+    transition: opacity 0.3s ease;
+  }
+}
+
+/* Monitoring Zone Container: Progress Meter + Telemetry Terminal */
+.flash-monitoring-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}

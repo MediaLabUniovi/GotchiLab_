@@ -35,17 +35,31 @@
         <span class="brand-tag">STEAM FIRMWARE DEPLOYER</span>
       </div>
 
-      <!-- MediaLab_ Official Branding with Authentic Stacked Serigraphy & Blinking Cursor -->
-      <a href="https://www.medialab-uniovi.es/" target="_blank" rel="noopener noreferrer" class="medialab-brand-card" title="MediaLab Universidad de Oviedo">
-        <div class="medialab-logo-stacked">
-          <span class="ml-word-media">media</span>
-          <span class="ml-word-lab">lab<span class="cursor-blink">_</span></span>
-        </div>
-        <div class="medialab-brand-meta">
-          <span class="ml-meta-inst">UNIVERSIDAD DE OVIEDO</span>
-          <span class="ml-meta-campus">EPI GIJÓN</span>
-        </div>
-      </a>
+      <!-- Right Actions Cluster: Assembly Guide + Tour Help Button + MediaLab Brand -->
+      <div class="nav-right-cluster">
+        <!-- Assembly Tutorial Guide Link Button -->
+        <a id="btnAssemblyGuide" href="#" target="_blank" rel="noopener noreferrer" class="btn-nav-tour btn-nav-assembly" title="¿Aún no has montado tu pingüino? Ver guía de montaje">
+          <span class="tour-icon-dot assembly-icon-dot">🛠️</span>
+          <span>¿No tienes tu pingüino montado?</span>
+        </a>
+
+        <button id="btnOpenTour" class="btn-nav-tour" type="button" title="Abrir tutorial guiado paso a paso">
+          <span class="tour-icon-dot">?</span>
+          <span>¿Cómo funciona?</span>
+        </button>
+
+        <!-- MediaLab_ Official Branding with Authentic Stacked Serigraphy & Blinking Cursor -->
+        <a href="https://www.medialab-uniovi.es/" target="_blank" rel="noopener noreferrer" class="medialab-brand-card" title="MediaLab Universidad de Oviedo">
+          <div class="medialab-logo-stacked">
+            <span class="ml-word-media">media</span>
+            <span class="ml-word-lab">lab<span class="cursor-blink">_</span></span>
+          </div>
+          <div class="medialab-brand-meta">
+            <span class="ml-meta-inst">UNIVERSIDAD DE OVIEDO</span>
+            <span class="ml-meta-campus">EPI GIJÓN</span>
+          </div>
+        </a>
+      </div>
     </header>
 
     <!-- Browser Serial Alert Banner (hidden if supported) -->
@@ -168,36 +182,39 @@
             </span>
           </button>
 
-          <!-- HUD Progress Meter -->
-          <div class="flash-hud-meter">
-            <div class="meter-info-row">
-              <span id="flashStatusLabel">Listo para flashear por Web Serial</span>
-              <span id="flashProgressPct" class="meter-pct">0%</span>
+          <!-- Monitoring Zone: Progress Meter + Telemetry Terminal -->
+          <div class="flash-monitoring-zone" id="flashMonitoringZone">
+            <!-- HUD Progress Meter -->
+            <div class="flash-hud-meter">
+              <div class="meter-info-row">
+                <span id="flashStatusLabel">Listo para flashear por Web Serial</span>
+                <span id="flashProgressPct" class="meter-pct">0%</span>
+              </div>
+              <div class="meter-track">
+                <div class="meter-fill" id="flashProgressBar"></div>
+              </div>
+              
+              <!-- Step Indicators -->
+              <div class="meter-steps">
+                <span class="step-chip" id="step-1">1. PUERTO</span>
+                <span class="step-chip" id="step-2">2. SYNC</span>
+                <span class="step-chip" id="step-3">3. BINARIO</span>
+                <span class="step-chip" id="step-4">4. FLASH 0x0</span>
+                <span class="step-chip" id="step-5">5. LISTO</span>
+              </div>
             </div>
-            <div class="meter-track">
-              <div class="meter-fill" id="flashProgressBar"></div>
-            </div>
-            
-            <!-- Step Indicators -->
-            <div class="meter-steps">
-              <span class="step-chip" id="step-1">1. PUERTO</span>
-              <span class="step-chip" id="step-2">2. SYNC</span>
-              <span class="step-chip" id="step-3">3. BINARIO</span>
-              <span class="step-chip" id="step-4">4. FLASH 0x0</span>
-              <span class="step-chip" id="step-5">5. LISTO</span>
-            </div>
-          </div>
 
-          <!-- Telemetry Terminal -->
-          <div class="telemetry-terminal">
-            <div class="terminal-top">
-              <span class="terminal-title">TELEMETRÍA SERIE // 460800 BAUD</span>
-              <button id="btnClearLog" class="btn-clear-term" title="Limpiar salida">Limpiar</button>
-            </div>
-            <div class="terminal-view" id="telemetryConsole">
-              <div class="log-dim">[SISTEMA] GotchiLab_ Deployer inicializado.</div>
-              <div class="log-dim">[SISTEMA] Selecciona tus módulos arriba y pulsa "INICIAR CARGA AL ESP32".</div>
-              <div class="log-cyan">[CONFIG] Imagen unificada en offset 0x00000000.</div>
+            <!-- Telemetry Terminal -->
+            <div class="telemetry-terminal">
+              <div class="terminal-top">
+                <span class="terminal-title">TELEMETRÍA SERIE // 460800 BAUD</span>
+                <button id="btnClearLog" class="btn-clear-term" title="Limpiar salida">Limpiar</button>
+              </div>
+              <div class="terminal-view" id="telemetryConsole">
+                <div class="log-dim">[SISTEMA] GotchiLab_ Deployer inicializado.</div>
+                <div class="log-dim">[SISTEMA] Selecciona tus módulos arriba y pulsa "INICIAR CARGA AL ESP32".</div>
+                <div class="log-cyan">[CONFIG] Imagen unificada en offset 0x00000000.</div>
+              </div>
             </div>
           </div>
 
@@ -260,5 +277,6 @@
   <!-- Application Scripts -->
   <script src="js/animations.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/tour.js"></script>
 </body>
 </html>
