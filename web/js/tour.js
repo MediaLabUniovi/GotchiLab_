@@ -338,7 +338,7 @@ class GotchiTour {
                             <span class="assembly-callout-icon">📖</span>
                             <span>Accede a la guía detallada con todos los esquemas y conexiones:</span>
                         </div>
-                        <a href="#" target="_blank" rel="noopener noreferrer" class="tour-btn-guide" id="tourBtnOpenGuide">
+                        <a href="docs/guia.pdf" target="_blank" rel="noopener noreferrer" class="tour-btn-guide" id="tourBtnOpenGuide">
                             <span>Ver Guía de Montaje</span> ➔
                         </a>
                     </div>
